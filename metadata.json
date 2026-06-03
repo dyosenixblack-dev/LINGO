@@ -1,0 +1,6 @@
+{
+  "name": "TradiDour",
+  "description": "مترجم سياحي ذكي يدعم ترجمة الصوت، النصوص، والافتات والصور باستخدام ذكاء اصطناعي فائق السرعة، مع إدارة ذكية للسجل والاشتراكات.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
