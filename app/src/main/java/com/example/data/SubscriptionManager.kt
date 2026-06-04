@@ -22,6 +22,27 @@ class SubscriptionManager(context: Context) {
         private const val KEY_VOICE_COUNT = "voice_count_today"
         private const val KEY_SUB_EXPIRY = "subscription_expiry"
         private const val KEY_SUB_EXPIRED = "subscription_is_expired"
+        private const val KEY_TEXT_SCALE_INDEX = "text_scale_index"
+    }
+
+    fun getTextScaleIndex(): Int {
+        return prefs.getInt(KEY_TEXT_SCALE_INDEX, 1) // default standard/medium (index 1)
+    }
+
+    fun setTextScaleIndex(index: Int) {
+        prefs.edit().putInt(KEY_TEXT_SCALE_INDEX, index).apply()
+    }
+
+    fun getTextScaleMultiplier(): Float {
+        return when (getTextScaleIndex()) {
+            0 -> 0.85f
+            1 -> 1.00f
+            2 -> 1.15f
+            3 -> 1.30f
+            4 -> 1.45f
+            5 -> 1.60f
+            else -> 1.00f
+        }
     }
 
     private fun getTodayDateString(): String {

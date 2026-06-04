@@ -17,6 +17,8 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -39,8 +41,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.unit.Density
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
@@ -82,10 +87,20 @@ fun MainAppScreen(viewModel: TranslationViewModel) {
     val systemDarkMode by viewModel.isDarkMode.collectAsStateWithLifecycle()
     val currentTab by viewModel.currentTab.collectAsStateWithLifecycle()
     val toastMessage by viewModel.toastMessage.collectAsStateWithLifecycle()
+    val textScaleMultiplier by viewModel.textScaleMultiplier.collectAsStateWithLifecycle()
 
-    // Clipboard and Toast Handling
-    val clipboardManager = remember { context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager }
-    val scope = rememberCoroutineScope()
+    val baseDensity = LocalDensity.current
+    val customDensity = remember(baseDensity, textScaleMultiplier) {
+        Density(
+            density = baseDensity.density,
+            fontScale = baseDensity.fontScale * textScaleMultiplier
+        )
+    }
+
+    CompositionLocalProvider(LocalDensity provides customDensity) {
+        // Clipboard and Toast Handling
+        val clipboardManager = remember { context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager }
+        val scope = rememberCoroutineScope()
 
     // Active TTS speaker
     var tts by remember { mutableStateOf<TextToSpeech?>(null) }
@@ -116,9 +131,9 @@ fun MainAppScreen(viewModel: TranslationViewModel) {
         Brush.verticalGradient(listOf(Color(0xFFF7F2FA), Color(0xFFE8E1EF)))
     }
 
-    val textColor = if (systemDarkMode) Color(0xFFE6E1E5) else Color(0xFF211F26)
+    val textColor = if (systemDarkMode) Color(0xFF63C0FF) else Color(0xFF0D47A1)
     val cardBgColor = if (systemDarkMode) CardDark else Color(0xFFF3EDF7)
-    val secondaryTextColor = if (systemDarkMode) Color(0xFFCAC4D0) else Color(0xFF49454F)
+    val secondaryTextColor = if (systemDarkMode) Color(0xFFBBDEFB) else Color(0xFF1976D2)
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -218,6 +233,7 @@ fun MainAppScreen(viewModel: TranslationViewModel) {
         }
     }
 }
+}
 
 @Composable
 fun TopHeaderSection(isDarkMode: Boolean, onToggleTheme: () -> Unit) {
@@ -255,10 +271,10 @@ fun TopHeaderSection(isDarkMode: Boolean, onToggleTheme: () -> Unit) {
                 Spacer(modifier = Modifier.width(12.dp))
                 Column {
                     Text(
-                        text = "TradiDour",
+                        text = "Lingo",
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
-                        color = if (isDarkMode) Color.White else Color(0xFF1A1A1A)
+                        color = if (isDarkMode) Color(0xFF63C0FF) else Color(0xFF0D47A1)
                     )
                     Text(
                         text = "المرافق الذكي في رحلاتك",
@@ -2066,15 +2082,17 @@ fun SettingsTabScreen(
     isDarkMode: Boolean
 ) {
     val activeSubscription by viewModel.subscriptionType.collectAsStateWithLifecycle()
+    val scrollState = rememberScrollState()
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 16.dp),
+            .padding(horizontal = 16.dp)
+            .verticalScroll(scrollState),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
-            text = "الإعدادات العامة لـ TradiDour",
+            text = "الإعدادات العامة لـ Lingo",
             fontSize = 18.sp,
             fontWeight = FontWeight.Bold,
             color = textColor,
@@ -2150,6 +2168,134 @@ fun SettingsTabScreen(
             }
         }
         
+        Spacer(modifier = Modifier.height(14.dp))
+
+        // Card settings for text & display size scaling in real-time
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(containerColor = cardBgColor)
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                val currentScaleIndex by viewModel.textScaleIndex.collectAsStateWithLifecycle()
+                
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.ZoomIn,
+                        contentDescription = null,
+                        tint = AccentTeal,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "تكبير وتصغير الكتابة والواجهة",
+                            fontSize = 14.sp,
+                            color = textColor,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "تحكم في تباعد الكلمات وحجم العرض لتجنب التزاحم أو التداخل",
+                            fontSize = 11.sp,
+                            color = secondaryTextColor
+                        )
+                    }
+                }
+                
+                Spacer(modifier = Modifier.height(14.dp))
+                
+                val scaleLabels = listOf("صغير جداً", "افتراضي", "متوسط", "كبير", "كبير جداً", "ضخم")
+                val multipliers = listOf("85%", "100%", "115%", "130%", "145%", "160%")
+                
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "المستوى: ${scaleLabels.getOrNull(currentScaleIndex) ?: "افتراضي"} (${multipliers.getOrNull(currentScaleIndex) ?: "100%"})",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = AccentTeal
+                        )
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            IconButton(
+                                onClick = { 
+                                    if (currentScaleIndex > 0) {
+                                        viewModel.setTextScaleIndex(currentScaleIndex - 1)
+                                    }
+                                },
+                                enabled = currentScaleIndex > 0,
+                                modifier = Modifier.size(28.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Remove, 
+                                    contentDescription = "تصغير مظهر الخط", 
+                                    tint = if (currentScaleIndex > 0) AccentTeal else secondaryTextColor.copy(alpha = 0.4f), 
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                            IconButton(
+                                onClick = { 
+                                    if (currentScaleIndex < scaleLabels.lastIndex) {
+                                        viewModel.setTextScaleIndex(currentScaleIndex + 1)
+                                    }
+                                },
+                                enabled = currentScaleIndex < scaleLabels.lastIndex,
+                                modifier = Modifier.size(28.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Add, 
+                                    contentDescription = "تكبير مظهر الخط", 
+                                    tint = if (currentScaleIndex < scaleLabels.lastIndex) AccentTeal else secondaryTextColor.copy(alpha = 0.4f), 
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
+                    }
+                    
+                    Spacer(modifier = Modifier.height(4.dp))
+                    
+                    Slider(
+                        value = currentScaleIndex.toFloat(),
+                        onValueChange = { 
+                            viewModel.setTextScaleIndex(it.toInt())
+                        },
+                        valueRange = 0f..scaleLabels.lastIndex.toFloat(),
+                        steps = scaleLabels.size - 2,
+                        colors = SliderDefaults.colors(
+                            thumbColor = AccentTeal,
+                            activeTrackColor = AccentTeal,
+                            inactiveTrackColor = textColor.copy(alpha = 0.1f)
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    
+                    Spacer(modifier = Modifier.height(6.dp))
+                    
+                    // Live Preview box
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(textColor.copy(alpha = 0.05f))
+                            .padding(horizontal = 12.dp, vertical = 8.dp)
+                    ) {
+                        Text(
+                            text = "عينة معاينة حية: Lingo يُسهّل تصفح السفر والترجمات بدقة!",
+                            fontSize = 11.sp,
+                            color = textColor,
+                            modifier = Modifier.align(Alignment.Center)
+                        )
+                    }
+                }
+            }
+        }
+
         Spacer(modifier = Modifier.height(20.dp))
 
         // Guide / Safety details
@@ -2177,7 +2323,7 @@ fun SettingsTabScreen(
             }
         }
 
-        Spacer(modifier = Modifier.weight(1f))
+        Spacer(modifier = Modifier.height(24.dp))
 
         Text(
             text = "جميع الحقوق محفوظة\nمنشأ التطبيق: By Younes Hidour©",

@@ -91,6 +91,13 @@ class TranslationViewModel(application: Application) : AndroidViewModel(applicat
     private val _toastMessage = MutableStateFlow<String?>(null)
     val toastMessage: StateFlow<String?> = _toastMessage.asStateFlow()
 
+    // Text & Display zoom scaling states
+    private val _textScaleIndex = MutableStateFlow(subscriptionManager.getTextScaleIndex())
+    val textScaleIndex: StateFlow<Int> = _textScaleIndex.asStateFlow()
+
+    private val _textScaleMultiplier = MutableStateFlow(subscriptionManager.getTextScaleMultiplier())
+    val textScaleMultiplier: StateFlow<Float> = _textScaleMultiplier.asStateFlow()
+
     // Dark Mode settings
     val isDarkMode = MutableStateFlow(true) // Start with premium dark mode by default!
 
@@ -103,6 +110,7 @@ class TranslationViewModel(application: Application) : AndroidViewModel(applicat
         )
 
     init {
+        GeminiClient.initialize(application)
         updateLimits()
     }
 
@@ -128,6 +136,15 @@ class TranslationViewModel(application: Application) : AndroidViewModel(applicat
         _remainingVoice.value = subscriptionManager.getRemainingVoice()
         _subscriptionExpiry.value = subscriptionManager.getSubscriptionExpiry()
         _isSubscriptionExpired.value = subscriptionManager.isSubscriptionExpired()
+        _textScaleIndex.value = subscriptionManager.getTextScaleIndex()
+        _textScaleMultiplier.value = subscriptionManager.getTextScaleMultiplier()
+    }
+
+    fun setTextScaleIndex(index: Int) {
+        subscriptionManager.setTextScaleIndex(index)
+        _textScaleIndex.value = index
+        _textScaleMultiplier.value = subscriptionManager.getTextScaleMultiplier()
+        _toastMessage.value = "تم تغيير تكبير وحجم العرض بنجاح! 🔬"
     }
 
     // Subscribe/Upgrade action
@@ -169,10 +186,10 @@ class TranslationViewModel(application: Application) : AndroidViewModel(applicat
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
             val channel = android.app.NotificationChannel(
                 channelId,
-                "إشعارات باقات TradiDour",
+                "إشعارات باقات Lingo",
                 android.app.NotificationManager.IMPORTANCE_HIGH
             ).apply {
-                description = "قنوات تنبيه لتجديد واشتراك باقات تطبيق TradiDour"
+                description = "قنوات تنبيه لتجديد واشتراك باقات تطبيق Lingo"
             }
             notificationManager.createNotificationChannel(channel)
         }
@@ -189,7 +206,7 @@ class TranslationViewModel(application: Application) : AndroidViewModel(applicat
 
         val builder = androidx.core.app.NotificationCompat.Builder(context, channelId)
             .setSmallIcon(android.R.drawable.ic_dialog_alert)
-            .setContentTitle("انتهى اشتراك $packageName لـ TradiDour ⚠️")
+            .setContentTitle("انتهى اشتراك $packageName لـ Lingo ⚠️")
             .setContentText("انتهت صلاحية باقتك الشهرية اليوم. اضغط هنا لتجديد باقتك فوراً ومتابعة السفر!")
             .setPriority(androidx.core.app.NotificationCompat.PRIORITY_HIGH)
             .setContentIntent(pendingIntent)
