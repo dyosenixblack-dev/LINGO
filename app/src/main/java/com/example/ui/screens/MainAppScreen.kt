@@ -10,6 +10,12 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.result.launch
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
@@ -81,6 +87,83 @@ val NavyDark = Color(0xFF1C1B1F)
 val CardDark = Color(0xFF2B2930)
 val AccentTeal = Color(0xFFD0BCFF)
 val GoldColor = Color(0xFFE8DEF8)
+
+// Framer Motion spring-style transition specifications
+val FramerMotionEnter = fadeIn(
+    animationSpec = spring(
+        dampingRatio = 0.72f,
+        stiffness = 180f
+    )
+) + slideInVertically(
+    initialOffsetY = { 60 },
+    animationSpec = spring(
+        dampingRatio = 0.72f,
+        stiffness = 180f
+    )
+) + scaleIn(
+    initialScale = 0.94f,
+    animationSpec = spring(
+        dampingRatio = 0.72f,
+        stiffness = 180f
+    )
+)
+
+val FramerMotionExit = fadeOut(
+    animationSpec = spring(
+        dampingRatio = 0.85f,
+        stiffness = 250f
+    )
+) + slideOutVertically(
+    targetOffsetY = { 40 },
+    animationSpec = spring(
+        dampingRatio = 0.85f,
+        stiffness = 250f
+    )
+) + scaleOut(
+    targetScale = 0.95f,
+    animationSpec = spring(
+        dampingRatio = 0.85f,
+        stiffness = 250f
+    )
+)
+
+val ToastFramerMotionEnter = fadeIn(
+    animationSpec = spring(
+        dampingRatio = 0.78f,
+        stiffness = 220f
+    )
+) + slideInVertically(
+    initialOffsetY = { -it },
+    animationSpec = spring(
+        dampingRatio = 0.78f,
+        stiffness = 220f
+    )
+) + scaleIn(
+    initialScale = 0.90f,
+    animationSpec = spring(
+        dampingRatio = 0.78f,
+        stiffness = 220f
+    )
+)
+
+val ToastFramerMotionExit = fadeOut(
+    animationSpec = spring(
+        dampingRatio = 0.90f,
+        stiffness = 300f
+    )
+) + slideOutVertically(
+    targetOffsetY = { -it },
+    animationSpec = spring(
+        dampingRatio = 0.90f,
+        stiffness = 300f
+    )
+) + scaleOut(
+    targetScale = 0.92f,
+    animationSpec = spring(
+        dampingRatio = 0.90f,
+        stiffness = 300f
+    )
+)
 
 val popularLanguages = listOf(
     "العربية", "الإنجليزية", "الفرنسية", "الإسبانية", "الإيطالية", 
@@ -289,6 +372,8 @@ fun MainAppScreen(viewModel: TranslationViewModel) {
                 // Elegant Custom SnackBar / Toast Alert Notification
                 AnimatedVisibility(
                     visible = toastMessage != null,
+                    enter = ToastFramerMotionEnter,
+                    exit = ToastFramerMotionExit,
                     modifier = Modifier
                         .align(Alignment.TopCenter)
                         .padding(top = 80.dp)
@@ -801,7 +886,11 @@ fun TextTranslatorView(
         Spacer(modifier = Modifier.height(12.dp))
 
         // Translation Result Display Cards
-        AnimatedVisibility(visible = translationResult.isNotEmpty()) {
+        AnimatedVisibility(
+            visible = translationResult.isNotEmpty(),
+            enter = FramerMotionEnter,
+            exit = FramerMotionExit
+        ) {
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -1051,7 +1140,11 @@ fun VoiceTranslatorView(
         }
 
         // Result displays
-        AnimatedVisibility(visible = voiceResult.isNotEmpty() || voiceTextPhrase.isNotEmpty()) {
+        AnimatedVisibility(
+            visible = voiceResult.isNotEmpty() || voiceTextPhrase.isNotEmpty(),
+            enter = FramerMotionEnter,
+            exit = FramerMotionExit
+        ) {
             Spacer(modifier = Modifier.height(12.dp))
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -1333,7 +1426,11 @@ fun CameraTranslatorView(
         }
 
         // Output Display
-        AnimatedVisibility(visible = imageResult.isNotEmpty()) {
+        AnimatedVisibility(
+            visible = imageResult.isNotEmpty(),
+            enter = FramerMotionEnter,
+            exit = FramerMotionExit
+        ) {
             Spacer(modifier = Modifier.height(12.dp))
             Card(
                 modifier = Modifier.fillMaxWidth(),
