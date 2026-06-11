@@ -373,6 +373,7 @@ fun SubscriptionType.getPrice(lang: String): String {
 fun getLocalizedLanguageName(langNameAr: String): String {
     return when (AppLocalization.currentLanguageCode) {
         "en" -> when (langNameAr) {
+            "التعرف التلقائي" -> "Auto-detect"
             "العربية" -> "Arabic"
             "الإنجليزية" -> "English"
             "الفرنسية" -> "French"
@@ -387,6 +388,7 @@ fun getLocalizedLanguageName(langNameAr: String): String {
             else -> langNameAr
         }
         "zh" -> when (langNameAr) {
+            "التعرف التلقائي" -> "自动检测"
             "العربية" -> "阿拉伯语"
             "الإنجليزية" -> "英语"
             "الفرنسية" -> "法语"
@@ -400,7 +402,21 @@ fun getLocalizedLanguageName(langNameAr: String): String {
             "الروسية" -> "俄语"
             else -> langNameAr
         }
-        else -> langNameAr
+        else -> when (langNameAr) {
+            "التعرف التلقائي" -> "التعرف التلقائي"
+            "العربية" -> "العربية"
+            "الإنجليزية" -> "الإنجليزية"
+            "الفرنسية" -> "الفرنسية"
+            "الإسبانية" -> "الإسبانية"
+            "الإيطالية" -> "الإيطالية"
+            "الألمانية" -> "الألمانية"
+            "التركية" -> "التركية"
+            "اليابانية" -> "اليابانية"
+            "الصينية" -> "الصينية"
+            "الكورية" -> "الكورية"
+            "الروسية" -> "الروسية"
+            else -> langNameAr
+        }
     }
 }
 

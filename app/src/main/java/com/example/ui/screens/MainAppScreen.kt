@@ -167,7 +167,7 @@ val ToastFramerMotionExit = fadeOut(
 )
 
 val popularLanguages = listOf(
-    "العربية", "الإنجليزية", "الفرنسية", "الإسبانية", "الإيطالية", 
+    "التعرف التلقائي", "العربية", "الإنجليزية", "الفرنسية", "الإسبانية", "الإيطالية", 
     "الألمانية", "التركية", "اليابانية", "الصينية", "الكورية", "الروسية"
 )
 
@@ -680,7 +680,7 @@ fun TranslatorTabScreen(
                         expanded = showTargetDrop,
                         onDismissRequest = { showTargetDrop = false }
                     ) {
-                        popularLanguages.forEach { lang ->
+                        popularLanguages.filter { it != "التعرف التلقائي" }.forEach { lang ->
                             DropdownMenuItem(
                                 text = { Text(getLocalizedLanguageName(lang)) },
                                 onClick = {
@@ -809,6 +809,54 @@ fun TranslatorTabScreen(
 }
 
 // TEXT TRANSLATOR BOX
+fun getDetectedLanguageLocalized(detectedName: String): String {
+    val clean = detectedName.trim().lowercase()
+    return when (AppLocalization.currentLanguageCode) {
+        "en" -> when (clean) {
+            "arabic", "ar" -> "Arabic"
+            "english", "en" -> "English"
+            "french", "fr" -> "French"
+            "spanish", "es" -> "Spanish"
+            "italian", "it" -> "Italian"
+            "german", "de" -> "German"
+            "turkish", "tr" -> "Turkish"
+            "japanese", "ja", "jp" -> "Japanese"
+            "chinese", "zh" -> "Chinese"
+            "korean", "ko" -> "Korean"
+            "russian", "ru" -> "Russian"
+            else -> detectedName
+        }
+        "zh" -> when (clean) {
+            "arabic", "ar" -> "阿拉伯语"
+            "english", "en" -> "英语"
+            "french", "fr" -> "法语"
+            "spanish", "es" -> "西班牙语"
+            "italian", "it" -> "意大利语"
+            "german", "de" -> "德语"
+            "turkish", "tr" -> "土耳其语"
+            "japanese", "ja", "jp" -> "日语"
+            "chinese", "zh" -> "中文"
+            "korean", "ko" -> "韩语"
+            "russian", "ru" -> "俄语"
+            else -> detectedName
+        }
+        else -> when (clean) {
+            "arabic", "ar" -> "العربية"
+            "english", "en" -> "الإنجليزية"
+            "french", "fr" -> "الفرنسية"
+            "spanish", "es" -> "الإسبانية"
+            "italian", "it" -> "الإيطالية"
+            "german", "de" -> "الألمانية"
+            "turkish", "tr" -> "التركية"
+            "japanese", "ja", "jp" -> "اليابانية"
+            "chinese", "zh" -> "الصينية"
+            "korean", "ko" -> "الكورية"
+            "russian", "ru" -> "الروسية"
+            else -> detectedName
+        }
+    }
+}
+
 @Composable
 fun TextTranslatorView(
     viewModel: TranslationViewModel,
@@ -820,6 +868,9 @@ fun TextTranslatorView(
 ) {
     val srcText by viewModel.sourceText.collectAsStateWithLifecycle()
     val translationResult by viewModel.translationResult.collectAsStateWithLifecycle()
+    val translationPronunciation by viewModel.translationPronunciation.collectAsStateWithLifecycle()
+    val translationExplanation by viewModel.translationExplanation.collectAsStateWithLifecycle()
+    val detectedLanguage by viewModel.detectedLanguage.collectAsStateWithLifecycle()
     val targetLang by viewModel.targetLang.collectAsStateWithLifecycle()
     val kbd = LocalSoftwareKeyboardController.current
 
@@ -835,7 +886,7 @@ fun TextTranslatorView(
             Column(modifier = Modifier.padding(16.dp)) {
                 OutlinedTextField(
                     value = srcText,
-                    onValueChange = { viewModel.sourceText.value = it },
+                    onValueChange = { if (it.length <= 2000) viewModel.sourceText.value = it },
                     placeholder = { Text(AppLocalization.get("enter_source_text"), fontSize = 14.sp, color = secondaryTextColor) },
                     modifier = Modifier
                         .fillMaxWidth()
@@ -855,14 +906,25 @@ fun TextTranslatorView(
                     })
                 )
 
-                // Input control buttons (Clear text)
-                if (srcText.isNotEmpty()) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.End
-                    ) {
-                        IconButton(onClick = { viewModel.sourceText.value = "" }) {
-                            Icon(Icons.Default.Clear, contentDescription = "مسح", tint = secondaryTextColor)
+                // Input control buttons & Character counter
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "${srcText.length} / 2000",
+                        fontSize = 11.sp,
+                        color = secondaryTextColor.copy(alpha = 0.7f),
+                        fontWeight = FontWeight.Medium
+                    )
+
+                    if (srcText.isNotEmpty()) {
+                        IconButton(
+                            onClick = { viewModel.clearTranslationOutcomes() },
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Icon(Icons.Default.Clear, contentDescription = "مسح", tint = secondaryTextColor, modifier = Modifier.size(16.dp))
                         }
                     }
                 }
@@ -907,6 +969,33 @@ fun TextTranslatorView(
                 elevation = CardDefaults.cardElevation(0.dp)
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
+                    // Auto-detected language section
+                    if (detectedLanguage != null) {
+                        val detectedText = when (AppLocalization.currentLanguageCode) {
+                            "en" -> "Detected Language: ${getDetectedLanguageLocalized(detectedLanguage!!)}"
+                            "zh" -> "检测到语言：${getDetectedLanguageLocalized(detectedLanguage!!)}"
+                            else -> "لغة المصدر المرصودة: ${getDetectedLanguageLocalized(detectedLanguage!!)}"
+                        }
+                        Row(
+                            modifier = Modifier.padding(bottom = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Language,
+                                contentDescription = null,
+                                tint = AccentTeal,
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = detectedText,
+                                color = AccentTeal,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+
                     Text(
                         text = "${AppLocalization.get("suggested_translation")} (${getLocalizedLanguageName(targetLang)}):",
                         fontSize = 12.sp,
@@ -922,6 +1011,57 @@ fun TextTranslatorView(
                         lineHeight = 24.sp,
                         modifier = Modifier.fillMaxWidth().testTag("text_result_view")
                     )
+
+                    // Pronunciation Assistant
+                    if (translationPronunciation.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Divider(color = AccentTeal.copy(alpha = 0.15f))
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        val pronunciationHeader = when (AppLocalization.currentLanguageCode) {
+                            "en" -> "Pronunciation Helper 🗣️"
+                            "zh" -> "发音助手 🗣️"
+                            else -> "مساعد النطق واللفظ 🗣️"
+                        }
+                        Text(
+                            text = pronunciationHeader,
+                            fontSize = 12.sp,
+                            color = AccentTeal,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = translationPronunciation,
+                            fontSize = 14.sp,
+                            color = textColor.copy(alpha = 0.85f),
+                            fontWeight = FontWeight.Normal,
+                            fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
+                        )
+                    }
+
+                    // Cultural / Traveler Guidance Tips
+                    if (translationExplanation.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Divider(color = AccentTeal.copy(alpha = 0.15f))
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        val explanationHeader = AppLocalization.get("explanation_title")
+                        Text(
+                            text = explanationHeader,
+                            fontSize = 12.sp,
+                            color = AccentTeal,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = translationExplanation,
+                            fontSize = 13.sp,
+                            color = secondaryTextColor,
+                            fontWeight = FontWeight.Normal,
+                            lineHeight = 18.sp
+                        )
+                    }
+
                     Spacer(modifier = Modifier.height(14.dp))
 
                     // Buttons to copy + tts speak

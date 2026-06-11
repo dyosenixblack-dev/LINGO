@@ -54,6 +54,15 @@ class TranslationViewModel(application: Application) : AndroidViewModel(applicat
     private val _translationResult = MutableStateFlow("")
     val translationResult: StateFlow<String> = _translationResult.asStateFlow()
 
+    private val _translationPronunciation = MutableStateFlow("")
+    val translationPronunciation: StateFlow<String> = _translationPronunciation.asStateFlow()
+
+    private val _translationExplanation = MutableStateFlow("")
+    val translationExplanation: StateFlow<String> = _translationExplanation.asStateFlow()
+
+    private val _detectedLanguage = MutableStateFlow<String?>(null)
+    val detectedLanguage: StateFlow<String?> = _detectedLanguage.asStateFlow()
+
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
@@ -295,17 +304,20 @@ class TranslationViewModel(application: Application) : AndroidViewModel(applicat
             val result = withContext(Dispatchers.IO) {
                 GeminiClient.translateText(text, src, dest)
             }
-            _translationResult.value = result
+            _translationResult.value = result.translatedText
+            _translationPronunciation.value = result.pronunciation ?: ""
+            _translationExplanation.value = result.explanation ?: ""
+            _detectedLanguage.value = result.detectedLanguage
             _isLoading.value = false
 
             // Save to history on success
-            if (!result.startsWith("ملاحظة:") && !result.startsWith("فشل في الاتصال")) {
+            if (!result.translatedText.startsWith("ملاحظة:") && !result.translatedText.startsWith("فشل في الاتصال")) {
                 withContext(Dispatchers.IO) {
                     historyDao.insertHistory(
                         TranslationHistory(
                             sourceText = text,
-                            translatedText = result,
-                            sourceLang = src,
+                            translatedText = result.translatedText,
+                            sourceLang = result.detectedLanguage ?: src,
                             targetLang = dest,
                             type = "text"
                         )
@@ -313,6 +325,14 @@ class TranslationViewModel(application: Application) : AndroidViewModel(applicat
                 }
             }
         }
+    }
+
+    fun clearTranslationOutcomes() {
+        sourceText.value = ""
+        _translationResult.value = ""
+        _translationPronunciation.value = ""
+        _translationExplanation.value = ""
+        _detectedLanguage.value = null
     }
 
     // 2. Voice Translation Action
@@ -401,6 +421,14 @@ class TranslationViewModel(application: Application) : AndroidViewModel(applicat
 
     // Swap Source & Target languages
     fun swapLanguages() {
+        if (sourceLang.value == "التعرف التلقائي") {
+            _toastMessage.value = when (AppLocalization.currentLanguageCode) {
+                "en" -> "Cannot swap when source language is Auto-detect!"
+                "zh" -> "当源语言为自动检测时无法交换！"
+                else -> "لا يمكن التبديل عندما تكون لغة المصدر هي التعرف التلقائي!"
+            }
+            return
+        }
         val temp = sourceLang.value
         sourceLang.value = targetLang.value
         targetLang.value = temp
