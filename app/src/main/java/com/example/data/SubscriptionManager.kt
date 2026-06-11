@@ -23,6 +23,15 @@ class SubscriptionManager(context: Context) {
         private const val KEY_SUB_EXPIRY = "subscription_expiry"
         private const val KEY_SUB_EXPIRED = "subscription_is_expired"
         private const val KEY_TEXT_SCALE_INDEX = "text_scale_index"
+        private const val KEY_APP_LANGUAGE = "app_language"
+    }
+
+    fun getAppLanguage(): String {
+        return prefs.getString(KEY_APP_LANGUAGE, "ar") ?: "ar"
+    }
+
+    fun setAppLanguage(lang: String) {
+        prefs.edit().putString(KEY_APP_LANGUAGE, lang).apply()
     }
 
     fun getTextScaleIndex(): Int {

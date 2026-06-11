@@ -61,7 +61,14 @@ import com.example.data.db.TranslationHistory
 import com.example.ui.AppTab
 import com.example.ui.TranslatorSubTab
 import com.example.ui.TranslationViewModel
+import com.example.ui.AppLocalization
+import com.example.ui.AppLanguage
+import com.example.ui.getTitle
+import com.example.ui.getDescription
+import com.example.ui.getPrice
 import com.example.util.ImageMockGenerator
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.unit.LayoutDirection
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -80,6 +87,23 @@ val popularLanguages = listOf(
     "الألمانية", "التركية", "اليابانية", "الصينية", "الكورية", "الروسية"
 )
 
+fun getLocaleForLanguage(languageName: String): java.util.Locale {
+    return when (languageName) {
+        "العربية" -> java.util.Locale("ar")
+        "الإنجليزية" -> java.util.Locale.US
+        "الفرنسية" -> java.util.Locale.FRANCE
+        "الإسبانية" -> java.util.Locale("es", "ES")
+        "الإيطالية" -> java.util.Locale.ITALY
+        "الألمانية" -> java.util.Locale.GERMANY
+        "التركية" -> java.util.Locale("tr", "TR")
+        "اليابانية" -> java.util.Locale.JAPAN
+        "الصينية" -> java.util.Locale.CHINA
+        "الكورية" -> java.util.Locale.KOREA
+        "الروسية" -> java.util.Locale("ru", "RU")
+        else -> java.util.Locale.US
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainAppScreen(viewModel: TranslationViewModel) {
@@ -97,7 +121,13 @@ fun MainAppScreen(viewModel: TranslationViewModel) {
         )
     }
 
-    CompositionLocalProvider(LocalDensity provides customDensity) {
+    val appLanguage by viewModel.appLanguage.collectAsStateWithLifecycle()
+    val layoutDirection = if (appLanguage == "ar") LayoutDirection.Rtl else LayoutDirection.Ltr
+
+    CompositionLocalProvider(
+        LocalDensity provides customDensity,
+        LocalLayoutDirection provides layoutDirection
+    ) {
         // Clipboard and Toast Handling
         val clipboardManager = remember { context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager }
         val scope = rememberCoroutineScope()
@@ -124,6 +154,12 @@ fun MainAppScreen(viewModel: TranslationViewModel) {
         }
     }
 
+    var showSplash by remember { mutableStateOf(true) }
+    LaunchedEffect(Unit) {
+        delay(3000)
+        showSplash = false
+    }
+
     // Dynamic Color Palette Base on Theme Selected
     val backgroundBrush = if (systemDarkMode) {
         Brush.verticalGradient(listOf(Color(0xFF1C1B1F), Color(0xFF141318)))
@@ -131,102 +167,158 @@ fun MainAppScreen(viewModel: TranslationViewModel) {
         Brush.verticalGradient(listOf(Color(0xFFF7F2FA), Color(0xFFE8E1EF)))
     }
 
-    val textColor = if (systemDarkMode) Color(0xFF63C0FF) else Color(0xFF0D47A1)
+    val textColor = if (systemDarkMode) Color(0xFFE6E1E5) else Color(0xFF211F26)
     val cardBgColor = if (systemDarkMode) CardDark else Color(0xFFF3EDF7)
-    val secondaryTextColor = if (systemDarkMode) Color(0xFFBBDEFB) else Color(0xFF1976D2)
+    val secondaryTextColor = if (systemDarkMode) Color(0xFFCAC4D0) else Color(0xFF49454F)
 
-    Scaffold(
-        modifier = Modifier.fillMaxSize(),
-        bottomBar = {
-            TranslationBottomNavigation(
-                currentTab = currentTab,
-                onTabSelect = { viewModel.selectTab(it) },
-                isDarkMode = systemDarkMode
-            )
-        },
-        contentWindowInsets = WindowInsets.navigationBars,
-        containerColor = Color.Transparent
-    ) { innerPadding ->
+    if (showSplash) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(backgroundBrush)
-                .padding(innerPadding)
+                .background(backgroundBrush),
+            contentAlignment = Alignment.Center
         ) {
-            Column(modifier = Modifier.fillMaxSize()) {
-                // Top Header Bar
-                TopHeaderSection(isDarkMode = systemDarkMode) {
-                    viewModel.isDarkMode.value = !systemDarkMode
-                }
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+                modifier = Modifier.padding(24.dp)
+            ) {
+                Text(
+                    text = "Lingo",
+                    style = TextStyle(
+                        fontSize = 32.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (systemDarkMode) Color(0xFF63C0FF) else Color(0xFF0D47A1),
+                        textAlign = TextAlign.Center
+                    )
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    text = "BY YOUNES HIDOURI",
+                    style = TextStyle(
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = if (systemDarkMode) Color(0xFFBBDEFB) else Color(0xFF1565C0),
+                        textAlign = TextAlign.Center
+                    )
+                )
+                Spacer(modifier = Modifier.height(32.dp))
+                CircularProgressIndicator(
+                    color = if (systemDarkMode) Color(0xFF63C0FF) else Color(0xFF0D47A1),
+                    strokeWidth = 3.dp,
+                    modifier = Modifier.size(36.dp)
+                )
+            }
+        }
+    } else {
+        Scaffold(
+            modifier = Modifier.fillMaxSize(),
+            bottomBar = {
+                TranslationBottomNavigation(
+                    currentTab = currentTab,
+                    onTabSelect = { viewModel.selectTab(it) },
+                    isDarkMode = systemDarkMode
+                )
+            },
+            contentWindowInsets = WindowInsets.navigationBars,
+            containerColor = Color.Transparent
+        ) { innerPadding ->
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(backgroundBrush)
+                    .padding(innerPadding)
+            ) {
+                Column(modifier = Modifier.fillMaxSize()) {
+                    // Top Header Bar
+                    TopHeaderSection(
+                        isDarkMode = systemDarkMode,
+                        onToggleTheme = { viewModel.isDarkMode.value = !systemDarkMode },
+                        onShareClick = {
+                            val sendIntent = android.content.Intent().apply {
+                                action = android.content.Intent.ACTION_SEND
+                                putExtra(
+                                    android.content.Intent.EXTRA_TEXT,
+                                    "حمّل تطبيق Lingo المميز لترجمة النصوص والأصوات وصور اللافتات فوراً بدعم الذكاء الاصطناعي! التطبيق مصمم لتسهيل رحلاتك وتواصلك بكافة اللغات. تواصل، ترجم وسافر بكل ثقة!"
+                                )
+                                type = "text/plain"
+                            }
+                            val shareIntent = android.content.Intent.createChooser(sendIntent, "مشاركة لـ Lingo عبر:")
+                            context.startActivity(shareIntent)
+                        }
+                    )
 
-                // Show Content for current tab
-                Box(modifier = Modifier.weight(1f)) {
-                    when (currentTab) {
-                        AppTab.TRANSLATOR -> TranslatorTabScreen(
-                            viewModel = viewModel,
-                            cardBgColor = cardBgColor,
-                            textColor = textColor,
-                            secondaryTextColor = secondaryTextColor,
-                            isDarkMode = systemDarkMode,
-                            tts = tts,
-                            clipboardManager = clipboardManager
-                        )
-                        AppTab.HISTORY -> HistoryTabScreen(
-                            viewModel = viewModel,
-                            cardBgColor = cardBgColor,
-                            textColor = textColor,
-                            secondaryTextColor = secondaryTextColor
-                        )
-                        AppTab.PLANS -> PlansTabScreen(
-                            viewModel = viewModel,
-                            cardBgColor = cardBgColor,
-                            textColor = textColor,
-                            secondaryTextColor = secondaryTextColor,
-                            isDarkMode = systemDarkMode
-                        )
-                        AppTab.SETTINGS -> SettingsTabScreen(
-                            viewModel = viewModel,
-                            cardBgColor = cardBgColor,
-                            textColor = textColor,
-                            secondaryTextColor = secondaryTextColor,
-                            isDarkMode = systemDarkMode
-                        )
+                    // Show Content for current tab
+                    Box(modifier = Modifier.weight(1f)) {
+                        when (currentTab) {
+                            AppTab.TRANSLATOR -> TranslatorTabScreen(
+                                viewModel = viewModel,
+                                cardBgColor = cardBgColor,
+                                textColor = textColor,
+                                secondaryTextColor = secondaryTextColor,
+                                isDarkMode = systemDarkMode,
+                                tts = tts,
+                                clipboardManager = clipboardManager
+                            )
+                            AppTab.HISTORY -> HistoryTabScreen(
+                                viewModel = viewModel,
+                                cardBgColor = cardBgColor,
+                                textColor = textColor,
+                                secondaryTextColor = secondaryTextColor,
+                                tts = tts,
+                                clipboardManager = clipboardManager
+                            )
+                            AppTab.PLANS -> PlansTabScreen(
+                                viewModel = viewModel,
+                                cardBgColor = cardBgColor,
+                                textColor = textColor,
+                                secondaryTextColor = secondaryTextColor,
+                                isDarkMode = systemDarkMode
+                            )
+                            AppTab.SETTINGS -> SettingsTabScreen(
+                                viewModel = viewModel,
+                                cardBgColor = cardBgColor,
+                                textColor = textColor,
+                                secondaryTextColor = secondaryTextColor,
+                                isDarkMode = systemDarkMode
+                            )
+                        }
                     }
                 }
-            }
 
-            // Elegant Custom SnackBar / Toast Alert Notification
-            AnimatedVisibility(
-                visible = toastMessage != null,
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .padding(top = 80.dp)
-                    .padding(horizontal = 24.dp)
-            ) {
-                Card(
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = if (systemDarkMode) Color(0xFF1E283A) else Color(0xFF334155)),
-                    elevation = CardDefaults.cardElevation(10.dp),
-                    border = BorderStroke(1.dp, AccentTeal.copy(alpha = 0.5f))
+                // Elegant Custom SnackBar / Toast Alert Notification
+                AnimatedVisibility(
+                    visible = toastMessage != null,
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .padding(top = 80.dp)
+                        .padding(horizontal = 24.dp)
                 ) {
-                    Row(
-                        modifier = Modifier.padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                    Card(
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = if (systemDarkMode) Color(0xFF1E283A) else Color(0xFF334155)),
+                        elevation = CardDefaults.cardElevation(10.dp),
+                        border = BorderStroke(1.dp, AccentTeal.copy(alpha = 0.5f))
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Info,
-                            contentDescription = "تنبيه",
-                            tint = AccentTeal,
-                            modifier = Modifier.size(24.dp)
-                        )
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Text(
-                            text = toastMessage ?: "",
-                            color = Color.White,
-                            fontSize = 14.sp,
-                            textAlign = TextAlign.Right,
-                            modifier = Modifier.weight(1f)
-                        )
+                        Row(
+                            modifier = Modifier.padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Info,
+                                contentDescription = "تنبيه",
+                                tint = AccentTeal,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(
+                                text = toastMessage ?: "",
+                                color = Color.White,
+                                fontSize = 14.sp,
+                                textAlign = TextAlign.Right,
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
                     }
                 }
             }
@@ -236,7 +328,7 @@ fun MainAppScreen(viewModel: TranslationViewModel) {
 }
 
 @Composable
-fun TopHeaderSection(isDarkMode: Boolean, onToggleTheme: () -> Unit) {
+fun TopHeaderSection(isDarkMode: Boolean, onToggleTheme: () -> Unit, onShareClick: () -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -253,7 +345,7 @@ fun TopHeaderSection(isDarkMode: Boolean, onToggleTheme: () -> Unit) {
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             // App Identity
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
                 Box(
                     modifier = Modifier
                         .size(42.dp)
@@ -271,33 +363,54 @@ fun TopHeaderSection(isDarkMode: Boolean, onToggleTheme: () -> Unit) {
                 Spacer(modifier = Modifier.width(12.dp))
                 Column {
                     Text(
-                        text = "Lingo",
+                        text = AppLocalization.get("app_name"),
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
                         color = if (isDarkMode) Color(0xFF63C0FF) else Color(0xFF0D47A1)
                     )
                     Text(
-                        text = "المرافق الذكي في رحلاتك",
+                        text = AppLocalization.get("app_subtitle"),
                         fontSize = 11.sp,
                         color = AccentTeal
                     )
                 }
             }
 
-            // Dark Mode toggle switch
-            IconButton(
-                onClick = onToggleTheme,
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(CircleShape)
-                    .background(if (isDarkMode) Color(0xFF262E3B) else Color(0xFFE2E8F0))
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Icon(
-                    imageVector = if (isDarkMode) Icons.Default.WbSunny else Icons.Default.NightsStay,
-                    contentDescription = "تبديل المظهر",
-                    tint = if (isDarkMode) GoldColor else Color(0xFF475569),
-                    modifier = Modifier.size(20.dp)
-                )
+                // Share button
+                IconButton(
+                    onClick = onShareClick,
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .background(if (isDarkMode) Color(0xFF262E3B) else Color(0xFFE2E8F0))
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Share,
+                        contentDescription = "مشاركة التطبيق",
+                        tint = if (isDarkMode) AccentTeal else Color(0xFF475569),
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+
+                // Dark Mode toggle switch
+                IconButton(
+                    onClick = onToggleTheme,
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .background(if (isDarkMode) Color(0xFF262E3B) else Color(0xFFE2E8F0))
+                ) {
+                    Icon(
+                        imageVector = if (isDarkMode) Icons.Default.WbSunny else Icons.Default.NightsStay,
+                        contentDescription = "تبديل المظهر",
+                        tint = if (isDarkMode) GoldColor else Color(0xFF475569),
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
             }
         }
     }
@@ -316,8 +429,8 @@ fun TranslationBottomNavigation(
         NavigationBarItem(
             selected = currentTab == AppTab.TRANSLATOR,
             onClick = { onTabSelect(AppTab.TRANSLATOR) },
-            icon = { Icon(Icons.Default.Translate, contentDescription = "المترجم") },
-            label = { Text("المترجم", fontSize = 11.sp) },
+            icon = { Icon(Icons.Default.Translate, contentDescription = AppLocalization.get("tab_translator")) },
+            label = { Text(AppLocalization.get("tab_translator"), fontSize = 11.sp) },
             colors = NavigationBarItemDefaults.colors(
                 selectedIconColor = AccentTeal,
                 selectedTextColor = AccentTeal,
@@ -330,8 +443,8 @@ fun TranslationBottomNavigation(
         NavigationBarItem(
             selected = currentTab == AppTab.HISTORY,
             onClick = { onTabSelect(AppTab.HISTORY) },
-            icon = { Icon(Icons.Default.History, contentDescription = "السجل") },
-            label = { Text("السجل", fontSize = 11.sp) },
+            icon = { Icon(Icons.Default.History, contentDescription = AppLocalization.get("tab_history")) },
+            label = { Text(AppLocalization.get("tab_history"), fontSize = 11.sp) },
             colors = NavigationBarItemDefaults.colors(
                 selectedIconColor = AccentTeal,
                 selectedTextColor = AccentTeal,
@@ -344,8 +457,8 @@ fun TranslationBottomNavigation(
         NavigationBarItem(
             selected = currentTab == AppTab.PLANS,
             onClick = { onTabSelect(AppTab.PLANS) },
-            icon = { Icon(Icons.Default.Diamond, contentDescription = "الباقات") },
-            label = { Text("الباقات", fontSize = 11.sp) },
+            icon = { Icon(Icons.Default.Diamond, contentDescription = AppLocalization.get("tab_plans")) },
+            label = { Text(AppLocalization.get("tab_plans"), fontSize = 11.sp) },
             colors = NavigationBarItemDefaults.colors(
                 selectedIconColor = AccentTeal,
                 selectedTextColor = AccentTeal,
@@ -358,8 +471,8 @@ fun TranslationBottomNavigation(
         NavigationBarItem(
             selected = currentTab == AppTab.SETTINGS,
             onClick = { onTabSelect(AppTab.SETTINGS) },
-            icon = { Icon(Icons.Default.Settings, contentDescription = "الإعدادات") },
-            label = { Text("الإعدادات", fontSize = 11.sp) },
+            icon = { Icon(Icons.Default.Settings, contentDescription = AppLocalization.get("tab_settings")) },
+            label = { Text(AppLocalization.get("tab_settings"), fontSize = 11.sp) },
             colors = NavigationBarItemDefaults.colors(
                 selectedIconColor = AccentTeal,
                 selectedTextColor = AccentTeal,
@@ -504,6 +617,24 @@ fun TranslatorTabScreen(
             colors = CardDefaults.cardColors(containerColor = if (isDarkMode) Color(0xFF161B29) else Color(0xFFEBEFF5)),
             elevation = CardDefaults.cardElevation(0.dp)
         ) {
+            val subTabLabels = when (AppLocalization.currentLanguageCode) {
+                "en" -> mapOf(
+                    TranslatorSubTab.TEXT to "Text",
+                    TranslatorSubTab.VOICE to "Voice",
+                    TranslatorSubTab.CAMERA to "Camera"
+                )
+                "zh" -> mapOf(
+                    TranslatorSubTab.TEXT to "文本翻译",
+                    TranslatorSubTab.VOICE to "语音翻译",
+                    TranslatorSubTab.CAMERA to "拍照/图片"
+                )
+                else -> mapOf(
+                    TranslatorSubTab.TEXT to "نص مكتوب",
+                    TranslatorSubTab.VOICE to "رسالة صوتية",
+                    TranslatorSubTab.CAMERA to "لافتة / صورة"
+                )
+            }
+
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -511,11 +642,11 @@ fun TranslatorTabScreen(
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
                 listOf(
-                    TranslatorSubTab.TEXT to ("نص مكتوب" to Icons.Default.Keyboard),
-                    TranslatorSubTab.VOICE to ("رسالة صوتية" to Icons.Default.Mic),
-                    TranslatorSubTab.CAMERA to ("لافتة / صورة" to Icons.Default.PhotoCamera)
-                ).forEach { (tab, details) ->
-                    val (label, icon) = details
+                    TranslatorSubTab.TEXT to Icons.Default.Keyboard,
+                    TranslatorSubTab.VOICE to Icons.Default.Mic,
+                    TranslatorSubTab.CAMERA to Icons.Default.PhotoCamera
+                ).forEach { (tab, icon) ->
+                    val label = subTabLabels[tab] ?: ""
                     val selected = subTab == tab
                     val tabColor by animateColorAsState(
                         targetValue = if (selected) AccentTeal else Color.Transparent
@@ -716,17 +847,7 @@ fun TextTranslatorView(
                         Spacer(modifier = Modifier.width(12.dp))
                         IconButton(
                             onClick = {
-                                val locale = when (targetLang) {
-                                    "الإنجليزية" -> Locale.US
-                                    "الفرنسية" -> Locale.FRANCE
-                                    "الإسبانية" -> Locale("es", "ES")
-                                    "الألمانية" -> Locale.GERMANY
-                                    "الإيطالية" -> Locale.ITALY
-                                    "اليابانية" -> Locale.JAPAN
-                                    "الصينية" -> Locale.CHINA
-                                    "الكورية" -> Locale.KOREA
-                                    else -> Locale.ENGLISH
-                                }
+                                val locale = getLocaleForLanguage(targetLang)
                                 tts?.language = locale
                                 tts?.speak(translationResult, TextToSpeech.QUEUE_FLUSH, null, null)
                             },
@@ -980,13 +1101,7 @@ fun VoiceTranslatorView(
                         }
                         Spacer(modifier = Modifier.width(10.dp))
                         IconButton(onClick = {
-                            val locale = when (targetLang) {
-                                "الإنجليزية" -> Locale.US
-                                "الفرنسية" -> Locale.FRANCE
-                                "الألمانية" -> Locale.GERMANY
-                                "اليابانية" -> Locale.JAPAN
-                                else -> Locale.ENGLISH
-                            }
+                            val locale = getLocaleForLanguage(targetLang)
                             tts?.language = locale
                             tts?.speak(voiceResult, TextToSpeech.QUEUE_FLUSH, null, null)
                         }) {
@@ -1257,7 +1372,8 @@ fun CameraTranslatorView(
                         }
                         Spacer(modifier = Modifier.width(10.dp))
                         IconButton(onClick = {
-                            tts?.language = Locale.ENGLISH
+                            val locale = getLocaleForLanguage(targetLang)
+                            tts?.language = locale
                             tts?.speak(imageResult, TextToSpeech.QUEUE_FLUSH, null, null)
                         }) {
                             Icon(Icons.Default.VolumeUp, contentDescription = "نطق", tint = AccentTeal, modifier = Modifier.size(18.dp))
@@ -1308,7 +1424,9 @@ fun HistoryTabScreen(
     viewModel: TranslationViewModel,
     cardBgColor: Color,
     textColor: Color,
-    secondaryTextColor: Color
+    secondaryTextColor: Color,
+    tts: TextToSpeech?,
+    clipboardManager: ClipboardManager
 ) {
     val history by viewModel.historyList.collectAsStateWithLifecycle()
 
@@ -1371,7 +1489,10 @@ fun HistoryTabScreen(
                         bgColor = cardBgColor,
                         colorsText = textColor,
                         secTextColor = secondaryTextColor,
-                        onDelete = { viewModel.deleteHistoryItem(record.id) }
+                        onDelete = { viewModel.deleteHistoryItem(record.id) },
+                        tts = tts,
+                        clipboardManager = clipboardManager,
+                        viewModel = viewModel
                     )
                 }
                 item { Spacer(modifier = Modifier.height(24.dp)) }
@@ -1386,7 +1507,10 @@ fun HistoryItemCard(
     bgColor: Color,
     colorsText: Color,
     secTextColor: Color,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    tts: TextToSpeech?,
+    clipboardManager: ClipboardManager,
+    viewModel: TranslationViewModel
 ) {
     val timeFormatted = remember(record.timestamp) {
         val sdf = SimpleDateFormat("HH:mm - MM/dd", Locale.getDefault())
@@ -1450,6 +1574,36 @@ fun HistoryItemCard(
                 fontWeight = FontWeight.SemiBold,
                 lineHeight = 18.sp
             )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Action row for Copy + Speak (TTS)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(
+                    onClick = {
+                        clipboardManager.setPrimaryClip(ClipData.newPlainText("Translation", record.translatedText))
+                        viewModel.showToast("تم النسخ بنجاح")
+                    },
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Icon(Icons.Default.ContentCopy, contentDescription = "نسخ", tint = AccentTeal, modifier = Modifier.size(16.dp))
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                IconButton(
+                    onClick = {
+                        val locale = getLocaleForLanguage(record.targetLang)
+                        tts?.language = locale
+                        tts?.speak(record.translatedText, TextToSpeech.QUEUE_FLUSH, null, null)
+                    },
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Icon(Icons.Default.VolumeUp, contentDescription = "نطق الترجمة", tint = AccentTeal, modifier = Modifier.size(16.dp))
+                }
+            }
         }
     }
 }
@@ -2083,6 +2237,7 @@ fun SettingsTabScreen(
 ) {
     val activeSubscription by viewModel.subscriptionType.collectAsStateWithLifecycle()
     val scrollState = rememberScrollState()
+    val currentLangCode by viewModel.appLanguage.collectAsStateWithLifecycle()
 
     Column(
         modifier = Modifier
@@ -2092,14 +2247,14 @@ fun SettingsTabScreen(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
-            text = "الإعدادات العامة لـ Lingo",
+            text = AppLocalization.get("settings_title"),
             fontSize = 18.sp,
             fontWeight = FontWeight.Bold,
             color = textColor,
             modifier = Modifier.padding(top = 16.dp, bottom = 4.dp)
         )
         Text(
-            text = "تخصيص مظهر التطبيق وإدارة الاشتراك والبيانات",
+            text = AppLocalization.get("settings_desc"),
             fontSize = 11.sp,
             color = secondaryTextColor,
             modifier = Modifier.padding(bottom = 16.dp)
@@ -2121,11 +2276,11 @@ fun SettingsTabScreen(
                         Icon(Icons.Default.Star, contentDescription = null, tint = AccentTeal)
                         Spacer(modifier = Modifier.width(10.dp))
                         Column {
-                            Text("الباقة المفعلة", fontSize = 14.sp, color = textColor, fontWeight = FontWeight.Bold)
-                            Text("تاريخ الترقية والتحديث تلقائي", fontSize = 11.sp, color = secondaryTextColor)
+                            Text(AppLocalization.get("active_plan"), fontSize = 14.sp, color = textColor, fontWeight = FontWeight.Bold)
+                            Text(AppLocalization.get("plan_update_auto"), fontSize = 11.sp, color = secondaryTextColor)
                         }
                     }
-                    Text(activeSubscription.titleAr, fontSize = 13.sp, color = AccentTeal, fontWeight = FontWeight.Bold)
+                    Text(activeSubscription.getTitle(currentLangCode), fontSize = 13.sp, color = AccentTeal, fontWeight = FontWeight.Bold)
                 }
 
                 Divider(color = textColor.copy(alpha = 0.08f))
@@ -2140,8 +2295,8 @@ fun SettingsTabScreen(
                         Icon(Icons.Default.NightsStay, contentDescription = null, tint = AccentTeal)
                         Spacer(modifier = Modifier.width(10.dp))
                         Column {
-                            Text("الوضع المظلم", fontSize = 14.sp, color = textColor, fontWeight = FontWeight.Bold)
-                            Text("تغيير المظهر يدوي لتوفير البطارية", fontSize = 11.sp, color = secondaryTextColor)
+                            Text(AppLocalization.get("dark_mode"), fontSize = 14.sp, color = textColor, fontWeight = FontWeight.Bold)
+                            Text(AppLocalization.get("dark_mode_desc"), fontSize = 11.sp, color = secondaryTextColor)
                         }
                     }
                     Switch(
@@ -2149,6 +2304,99 @@ fun SettingsTabScreen(
                         onCheckedChange = { viewModel.isDarkMode.value = it },
                         colors = SwitchDefaults.colors(checkedThumbColor = AccentTeal, checkedTrackColor = AccentTeal.copy(alpha = 0.5f))
                     )
+                }
+
+                Divider(color = textColor.copy(alpha = 0.08f))
+
+                // App Language Selector Row
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.Language, contentDescription = null, tint = AccentTeal)
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column {
+                            Text(AppLocalization.get("app_language"), fontSize = 14.sp, color = textColor, fontWeight = FontWeight.Bold)
+                            Text(AppLocalization.get("app_language_desc"), fontSize = 11.sp, color = secondaryTextColor)
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        listOf(
+                            AppLanguage.AR to "العربية",
+                            AppLanguage.EN to "English",
+                            AppLanguage.ZH to "中文"
+                        ).forEach { (lang, displayName) ->
+                            val isSelected = currentLangCode == lang.code
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(if (isSelected) AccentTeal else textColor.copy(alpha = 0.05f))
+                                    .border(
+                                        width = 1.dp,
+                                        color = if (isSelected) AccentTeal else textColor.copy(alpha = 0.12f),
+                                        shape = RoundedCornerShape(12.dp)
+                                    )
+                                    .clickable {
+                                        viewModel.setAppLanguage(lang.code)
+                                    }
+                                    .padding(vertical = 10.dp)
+                                    .testTag("lang_select_${lang.code}"),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = displayName,
+                                    color = if (isSelected) Color.White else textColor,
+                                    fontSize = 12.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Divider(color = textColor.copy(alpha = 0.08f))
+
+                // Share app row
+                val context = LocalContext.current
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            val shareBody = when (currentLangCode) {
+                                "en" -> "Download Lingo, the smart AI-powered travel translator for text, voice & captured signs! Designed to support all your traveling steps. Share, translate, and travel with confidence!"
+                                "zh" -> "下载 Lingo，一款支持文本、语音和标志的人工智能出行翻译工具！旨在支持您所有的旅行步骤。分享、翻译、自信出行！"
+                                else -> "حمّل تطبيق Lingo المميز لترجمة النصوص والأصوات وصور اللافتات فوراً بدعم الذكاء الاصطناعي! التطبيق مصمم لتسهيل رحلاتك وتواصلك بكافة اللغات. تواصل، ترجم وسافر بكل ثقة!"
+                            }
+                            val shareChooserTitle = when (currentLangCode) {
+                                "en" -> "Share Lingo via:"
+                                "zh" -> "分享 Lingo 通过:"
+                                else -> "مشاركة لـ Lingo عبر:"
+                            }
+                            val sendIntent = android.content.Intent().apply {
+                                action = android.content.Intent.ACTION_SEND
+                                putExtra(android.content.Intent.EXTRA_TEXT, shareBody)
+                                type = "text/plain"
+                            }
+                            val shareIntent = android.content.Intent.createChooser(sendIntent, shareChooserTitle)
+                            context.startActivity(shareIntent)
+                        },
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                        Icon(Icons.Default.Share, contentDescription = null, tint = AccentTeal)
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column {
+                            Text(AppLocalization.get("share_app"), fontSize = 14.sp, color = textColor, fontWeight = FontWeight.Bold)
+                            Text(AppLocalization.get("share_app_desc"), fontSize = 11.sp, color = secondaryTextColor)
+                        }
+                    }
                 }
 
                 Divider(color = textColor.copy(alpha = 0.08f))
@@ -2161,8 +2409,8 @@ fun SettingsTabScreen(
                     Icon(Icons.Default.Code, contentDescription = null, tint = AccentTeal)
                     Spacer(modifier = Modifier.width(10.dp))
                     Column {
-                        Text("مبني باستعمال فلاش (Gemini 3.5 Flash)", fontSize = 14.sp, color = textColor, fontWeight = FontWeight.Bold)
-                        Text("معالجة عينات الكاميرا والصور والرسائل الصوتية السياحية تلقائياً بدقة ذكاء اصطناعي", fontSize = 11.sp, color = secondaryTextColor)
+                        Text(AppLocalization.get("build_with_flash"), fontSize = 14.sp, color = textColor, fontWeight = FontWeight.Bold)
+                        Text(AppLocalization.get("build_with_flash_desc"), fontSize = 11.sp, color = secondaryTextColor)
                     }
                 }
             }
@@ -2192,13 +2440,13 @@ fun SettingsTabScreen(
                     Spacer(modifier = Modifier.width(10.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "تكبير وتصغير الكتابة والواجهة",
+                            text = AppLocalization.get("zoom_title"),
                             fontSize = 14.sp,
                             color = textColor,
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            text = "تحكم في تباعد الكلمات وحجم العرض لتجنب التزاحم أو التداخل",
+                            text = AppLocalization.get("zoom_desc"),
                             fontSize = 11.sp,
                             color = secondaryTextColor
                         )
@@ -2207,7 +2455,11 @@ fun SettingsTabScreen(
                 
                 Spacer(modifier = Modifier.height(14.dp))
                 
-                val scaleLabels = listOf("صغير جداً", "افتراضي", "متوسط", "كبير", "كبير جداً", "ضخم")
+                val scaleLabels = when (currentLangCode) {
+                    "en" -> listOf("Tiny", "Default", "Medium", "Large", "Very Large", "Huge")
+                    "zh" -> listOf("极小", "默认", "中等", "大号", "超大号", "巨无霸")
+                    else -> listOf("صغير جداً", "افتراضي", "متوسط", "كبير", "كبير جداً", "ضخم")
+                }
                 val multipliers = listOf("85%", "100%", "115%", "130%", "145%", "160%")
                 
                 Column(modifier = Modifier.fillMaxWidth()) {
@@ -2217,7 +2469,7 @@ fun SettingsTabScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "المستوى: ${scaleLabels.getOrNull(currentScaleIndex) ?: "افتراضي"} (${multipliers.getOrNull(currentScaleIndex) ?: "100%"})",
+                            text = "${AppLocalization.get("zoom_level")}: ${scaleLabels.getOrNull(currentScaleIndex) ?: ""} (${multipliers.getOrNull(currentScaleIndex) ?: "100%"})",
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
                             color = AccentTeal
@@ -2234,7 +2486,7 @@ fun SettingsTabScreen(
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Remove, 
-                                    contentDescription = "تصغير مظهر الخط", 
+                                    contentDescription = null, 
                                     tint = if (currentScaleIndex > 0) AccentTeal else secondaryTextColor.copy(alpha = 0.4f), 
                                     modifier = Modifier.size(18.dp)
                                 )
@@ -2250,7 +2502,7 @@ fun SettingsTabScreen(
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Add, 
-                                    contentDescription = "تكبير مظهر الخط", 
+                                    contentDescription = null, 
                                     tint = if (currentScaleIndex < scaleLabels.lastIndex) AccentTeal else secondaryTextColor.copy(alpha = 0.4f), 
                                     modifier = Modifier.size(18.dp)
                                 )
@@ -2286,7 +2538,7 @@ fun SettingsTabScreen(
                             .padding(horizontal = 12.dp, vertical = 8.dp)
                     ) {
                         Text(
-                            text = "عينة معاينة حية: Lingo يُسهّل تصفح السفر والترجمات بدقة!",
+                            text = AppLocalization.get("zoom_live_preview"),
                             fontSize = 11.sp,
                             color = textColor,
                             modifier = Modifier.align(Alignment.Center)
@@ -2306,16 +2558,14 @@ fun SettingsTabScreen(
         ) {
             Column(modifier = Modifier.padding(14.dp)) {
                 Text(
-                    text = "🚨 إرشادات هامة للسفر والأمان:",
+                    text = AppLocalization.get("guide_title"),
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
                     color = AccentTeal
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "• التطبيق يعمل بالاتصال بالانترنت لترجمة الصور الصوتية والنصية.\n" +
-                           "• يرجى الاحتفاظ بنسخ محلية من اللوحات الطارئة والاتجاهات الحيوية من دفتري السجل.\n" +
-                           "• باقتك المجانية تمكنك من 5 صور و 3 صوتيات باليوم، يمكنك دائماً الترقية لتغطية رحلتك بسهولة مرنة.",
+                    text = AppLocalization.get("guide_desc"),
                     fontSize = 11.sp,
                     lineHeight = 16.sp,
                     color = textColor
@@ -2326,7 +2576,7 @@ fun SettingsTabScreen(
         Spacer(modifier = Modifier.height(24.dp))
 
         Text(
-            text = "جميع الحقوق محفوظة\nمنشأ التطبيق: By Younes Hidour©",
+            text = AppLocalization.get("rights"),
             fontSize = 11.sp,
             color = secondaryTextColor,
             textAlign = TextAlign.Center,

@@ -101,6 +101,10 @@ class TranslationViewModel(application: Application) : AndroidViewModel(applicat
     // Dark Mode settings
     val isDarkMode = MutableStateFlow(true) // Start with premium dark mode by default!
 
+    // App Language settings
+    private val _appLanguage = MutableStateFlow(subscriptionManager.getAppLanguage())
+    val appLanguage: StateFlow<String> = _appLanguage.asStateFlow()
+
     // Database History
     val historyList: StateFlow<List<TranslationHistory>> = historyDao.getAllHistory()
         .stateIn(
@@ -111,7 +115,20 @@ class TranslationViewModel(application: Application) : AndroidViewModel(applicat
 
     init {
         GeminiClient.initialize(application)
+        AppLocalization.currentLanguageCode = subscriptionManager.getAppLanguage()
         updateLimits()
+    }
+
+    fun setAppLanguage(lang: String) {
+        subscriptionManager.setAppLanguage(lang)
+        _appLanguage.value = lang
+        AppLocalization.currentLanguageCode = lang
+        val feedback = when (lang) {
+            "en" -> "App language changed to English! 🌐"
+            "zh" -> "应用语言已更改为中文！ 🌐"
+            else -> "تم تغيير لغة التطبيق إلى العربية بنجاح! 🌐"
+        }
+        showToast(feedback)
     }
 
     fun selectTab(tab: AppTab) {
@@ -144,52 +161,96 @@ class TranslationViewModel(application: Application) : AndroidViewModel(applicat
         subscriptionManager.setTextScaleIndex(index)
         _textScaleIndex.value = index
         _textScaleMultiplier.value = subscriptionManager.getTextScaleMultiplier()
-        _toastMessage.value = "تم تغيير تكبير وحجم العرض بنجاح! 🔬"
+        _toastMessage.value = when (AppLocalization.currentLanguageCode) {
+            "en" -> "View scaling changed successfully! 🔬"
+            "zh" -> "视图缩放比例更改成功！🔬"
+            else -> "تم تغيير تكبير وحجم العرض بنجاح! 🔬"
+        }
     }
 
     // Subscribe/Upgrade action
     fun upgradeSubscription(type: SubscriptionType) {
         subscriptionManager.setSubscriptionType(type)
         updateLimits()
-        _toastMessage.value = "تمت الترقية بنجاح إلى ${type.titleAr}!"
+        val title = type.getTitle(AppLocalization.currentLanguageCode)
+        _toastMessage.value = when (AppLocalization.currentLanguageCode) {
+            "en" -> "Successfully upgraded to $title!"
+            "zh" -> "成功升级至 $title！"
+            else -> "تمت الترقية بنجاح إلى ${type.titleAr}!"
+        }
     }
 
     // Purchase subscription via specified payment method
     fun purchaseSubscription(type: SubscriptionType, paymentMethod: String, priceStr: String) {
         subscriptionManager.renewSubscription(type)
         updateLimits()
-        _toastMessage.value = "تم تفعيل ${type.titleAr} ($priceStr) عبر $paymentMethod بنجاح! تم تجديد الصلاحية لمدة 30 يوماً."
+        val title = type.getTitle(AppLocalization.currentLanguageCode)
+        _toastMessage.value = when (AppLocalization.currentLanguageCode) {
+            "en" -> "Activated $title ($priceStr) via $paymentMethod successfully! Valid for 30 days."
+            "zh" -> "已通过 $paymentMethod 成功激活 $title ($priceStr)！30天内有效。"
+            else -> "تم تفعيل ${type.titleAr} ($priceStr) عبر $paymentMethod بنجاح! تم تجديد الصلاحية لمدة 30 يوماً."
+        }
     }
 
     // Trigger instant mock subscription expiration and send a real local notification alert
     fun simulateSubscriptionExpiration() {
         val currentType = subscriptionManager.getSubscriptionType()
         if (currentType == SubscriptionType.FREE) {
-            _toastMessage.value = "أنت تستخدم الباقة المجانية حالياً. يرجى الاشتراك أو الترقية أولاً ثم تجربة محاكاة التنبيه!"
+            _toastMessage.value = when (AppLocalization.currentLanguageCode) {
+                "en" -> "You are currently on the Free tier. Please subscribe/upgrade first!"
+                "zh" -> "您当前使用的是免费套餐。请先订阅或升级！"
+                else -> "أنت تستخدم الباقة المجانية حالياً. يرجى الاشتراك أو الترقية أولاً ثم تجربة محاكاة التنبيه!"
+            }
             return
         }
 
-        val packageName = currentType.titleAr
+        val packageName = currentType.getTitle(AppLocalization.currentLanguageCode)
         subscriptionManager.setSubscriptionExpiredState(true)
         updateLimits()
 
         // Trigger native notification
-        sendExpiryNotification(getApplication(), packageName)
-        _toastMessage.value = "تمت محاكاة انتهاء صلاحية باقة $packageName بنجاح وإرسال تنبيه فوري بالنظام! 🔔"
+        sendExpiryNotification(getApplication(), currentType)
+        _toastMessage.value = when (AppLocalization.currentLanguageCode) {
+            "en" -> "Simulated expiration of $packageName & sent notification! 🔔"
+            "zh" -> "已模拟套餐 $packageName 到期并发送通知！🔔"
+            else -> "تمت محاكاة انتهاء صلاحية باقة $packageName بنجاح وإرسال تنبيه فوري بالنظام! 🔔"
+        }
     }
 
     // Sending native alarm/expiration notification
-    private fun sendExpiryNotification(context: android.content.Context, packageName: String) {
+    private fun sendExpiryNotification(context: android.content.Context, currentType: SubscriptionType) {
         val channelId = "subscription_notifications"
         val notificationManager = context.getSystemService(android.content.Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
+
+        val nameEn = currentType.getTitle("en")
+        val nameZh = currentType.getTitle("zh")
+        val nameAr = currentType.titleAr
+
+        val title = when (AppLocalization.currentLanguageCode) {
+            "en" -> "Lingo subscription expired for $nameEn ⚠️"
+            "zh" -> "Lingo 的 $nameZh 套餐已过期 ⚠️"
+            else -> "انتهى اشتراك $nameAr لـ Lingo ⚠️"
+        }
+
+        val text = when (AppLocalization.currentLanguageCode) {
+            "en" -> "Your monthly subscription expired today. Click here to renew and continue your trip!"
+            "zh" -> "您的包月套餐今日已到期。点击此处立即续订以继续您的出行！"
+            else -> "انتهت صلاحية باقتك الشهرية اليوم. اضغط هنا لتجديد باقتك فوراً ومتابعة السفر!"
+        }
+
+        val channelName = when (AppLocalization.currentLanguageCode) {
+            "en" -> "Lingo Subscription Alerts"
+            "zh" -> "Lingo 订阅警报"
+            else -> "إشعارات باقات Lingo"
+        }
 
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
             val channel = android.app.NotificationChannel(
                 channelId,
-                "إشعارات باقات Lingo",
+                channelName,
                 android.app.NotificationManager.IMPORTANCE_HIGH
             ).apply {
-                description = "قنوات تنبيه لتجديد واشتراك باقات تطبيق Lingo"
+                description = "Lingo Subscription Channel"
             }
             notificationManager.createNotificationChannel(channel)
         }
@@ -206,8 +267,8 @@ class TranslationViewModel(application: Application) : AndroidViewModel(applicat
 
         val builder = androidx.core.app.NotificationCompat.Builder(context, channelId)
             .setSmallIcon(android.R.drawable.ic_dialog_alert)
-            .setContentTitle("انتهى اشتراك $packageName لـ Lingo ⚠️")
-            .setContentText("انتهت صلاحية باقتك الشهرية اليوم. اضغط هنا لتجديد باقتك فوراً ومتابعة السفر!")
+            .setContentTitle(title)
+            .setContentText(text)
             .setPriority(androidx.core.app.NotificationCompat.PRIORITY_HIGH)
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)
