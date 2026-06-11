@@ -72,6 +72,7 @@ import com.example.ui.AppLanguage
 import com.example.ui.getTitle
 import com.example.ui.getDescription
 import com.example.ui.getPrice
+import com.example.ui.getLocalizedLanguageName
 import com.example.util.ImageMockGenerator
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
@@ -626,7 +627,7 @@ fun TranslatorTabScreen(
                         modifier = Modifier.fillMaxWidth().testTag("source_lang_btn"),
                         shape = RoundedCornerShape(12.dp)
                     ) {
-                        Text(sourceLang, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                        Text(getLocalizedLanguageName(sourceLang), fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
                         Icon(Icons.Default.ArrowDropDown, contentDescription = null)
                     }
 
@@ -636,7 +637,7 @@ fun TranslatorTabScreen(
                     ) {
                         popularLanguages.forEach { lang ->
                             DropdownMenuItem(
-                                text = { Text(lang) },
+                                text = { Text(getLocalizedLanguageName(lang)) },
                                 onClick = {
                                     viewModel.sourceLang.value = lang
                                     showSourceDrop = false
@@ -671,7 +672,7 @@ fun TranslatorTabScreen(
                         modifier = Modifier.fillMaxWidth().testTag("target_lang_btn"),
                         shape = RoundedCornerShape(12.dp)
                     ) {
-                        Text(targetLang, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                        Text(getLocalizedLanguageName(targetLang), fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
                         Icon(Icons.Default.ArrowDropDown, contentDescription = null)
                     }
 
@@ -681,7 +682,7 @@ fun TranslatorTabScreen(
                     ) {
                         popularLanguages.forEach { lang ->
                             DropdownMenuItem(
-                                text = { Text(lang) },
+                                text = { Text(getLocalizedLanguageName(lang)) },
                                 onClick = {
                                     viewModel.targetLang.value = lang
                                     showTargetDrop = false
@@ -765,7 +766,12 @@ fun TranslatorTabScreen(
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         CircularProgressIndicator(color = AccentTeal)
                         Spacer(modifier = Modifier.height(12.dp))
-                        Text("جاري الترجمة بذكاء اصطناعي فائق...", color = secondaryTextColor, fontSize = 13.sp)
+                        val loadingText = when (AppLocalization.currentLanguageCode) {
+                            "en" -> "Translating via advanced AI..."
+                            "zh" -> "正在通过先进人工智能翻译..."
+                            else -> "جاري الترجمة بذكاء اصطناعي فائق..."
+                        }
+                        Text(loadingText, color = secondaryTextColor, fontSize = 13.sp)
                     }
                 }
             } else {
@@ -830,7 +836,7 @@ fun TextTranslatorView(
                 OutlinedTextField(
                     value = srcText,
                     onValueChange = { viewModel.sourceText.value = it },
-                    placeholder = { Text("اكتب النص المراد ترجمته هنا...", fontSize = 14.sp, color = secondaryTextColor) },
+                    placeholder = { Text(AppLocalization.get("enter_source_text"), fontSize = 14.sp, color = secondaryTextColor) },
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f)
@@ -880,7 +886,7 @@ fun TextTranslatorView(
         ) {
             Icon(Icons.Default.Translate, contentDescription = null, modifier = Modifier.size(20.dp))
             Spacer(modifier = Modifier.width(8.dp))
-            Text("ترجم النص الفوري", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+            Text(AppLocalization.get("translate_action"), fontSize = 16.sp, fontWeight = FontWeight.Bold)
         }
 
         Spacer(modifier = Modifier.height(12.dp))
@@ -902,7 +908,7 @@ fun TextTranslatorView(
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
-                        text = "الترجمة المقترحة لـ ($targetLang):",
+                        text = "${AppLocalization.get("suggested_translation")} (${getLocalizedLanguageName(targetLang)}):",
                         fontSize = 12.sp,
                         color = AccentTeal,
                         fontWeight = FontWeight.Bold
@@ -927,7 +933,7 @@ fun TextTranslatorView(
                         IconButton(
                             onClick = {
                                 clipboardManager.setPrimaryClip(ClipData.newPlainText("Translation", translationResult))
-                                viewModel.showToast("تم نسخ الترجمة بنجاح إلى الحافظة")
+                                viewModel.showToast(AppLocalization.get("copy_success"))
                             },
                             modifier = Modifier.testTag("copy_text_btn")
                         ) {
@@ -1001,9 +1007,28 @@ fun VoiceTranslatorView(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("المتبقي من الرسائل الصوتية اليوم:", fontSize = 12.sp, color = textColor)
+                val voiceLeftLabel = when (AppLocalization.currentLanguageCode) {
+                    "en" -> "Voice translations left today:"
+                    "zh" -> "今日剩余语音翻译数："
+                    else -> "المتبقي من الرسائل الصوتية اليوم:"
+                }
+                Text(voiceLeftLabel, fontSize = 12.sp, color = textColor)
+                
+                val voiceLimitVal = if (remainingVoice > 100) {
+                    when (AppLocalization.currentLanguageCode) {
+                        "en" -> "Unlimited"
+                        "zh" -> "无限制"
+                        else -> "لامحدود"
+                    }
+                } else {
+                    when (AppLocalization.currentLanguageCode) {
+                        "en" -> "$remainingVoice msgs"
+                        "zh" -> "$remainingVoice 条"
+                        else -> "رسائل $remainingVoice"
+                    }
+                }
                 Text(
-                    text = if (remainingVoice > 100) "لامحدود" else "$remainingVoice رسائل",
+                    text = voiceLimitVal,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
                     color = AccentTeal
@@ -1030,7 +1055,12 @@ fun VoiceTranslatorView(
                 verticalArrangement = Arrangement.Center
             ) {
                 if (isRecording) {
-                    Text("جاري الاستماع ولقط الصوت...", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = AccentTeal)
+                    val recordingLabel = when (AppLocalization.currentLanguageCode) {
+                        "en" -> "Listening and capturing audio..."
+                        "zh" -> "正在听取并捕获语音..."
+                        else -> "جاري الاستماع ولقط الصوت..."
+                    }
+                    Text(recordingLabel, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = AccentTeal)
                     Spacer(modifier = Modifier.height(18.dp))
 
                     // Simulated live recording soundwaves
@@ -1056,17 +1086,28 @@ fun VoiceTranslatorView(
 
                     Spacer(modifier = Modifier.height(24.dp))
 
+                    val stopRecordingDummyText = when (AppLocalization.currentLanguageCode) {
+                        "en" -> "Hello, can you guide me to the correct metro line?"
+                        "zh" -> "你好，能告诉我去地铁站的路怎么走吗？"
+                        else -> "أهلاً، هل يمكنك إرشادي إلى المسار الصحيح للمترو؟"
+                    }
+
+                    val finishAndTranslateLabel = when (AppLocalization.currentLanguageCode) {
+                        "en" -> "Finish & Translate"
+                        "zh" -> "结束录音并翻译"
+                        else -> "إنهاء الإرسال والترجمة"
+                    }
+
                     Button(
                         onClick = {
-                            // Finish and send a preset spoken text
-                            viewModel.stopRecordingAndTranslate("أهلاً، هل يمكنك إرشادي إلى المسار الصحيح للمترو؟")
+                            viewModel.stopRecordingAndTranslate(stopRecordingDummyText)
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = Color.Red),
                         modifier = Modifier.height(48.dp).testTag("stop_recording_btn")
                     ) {
                         Icon(Icons.Default.Stop, contentDescription = null)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("إنهاء الإرسال والترجمة", fontWeight = FontWeight.Bold)
+                        Text(finishAndTranslateLabel, fontWeight = FontWeight.Bold)
                     }
                 } else {
                     // Pre-activation view
@@ -1088,13 +1129,20 @@ fun VoiceTranslatorView(
                     }
                     Spacer(modifier = Modifier.height(14.dp))
                     Text(
-                        text = "اضغط لتسجيل رسالة صوتية وترجمتها",
+                        text = AppLocalization.get("voice_desc"),
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
-                        color = textColor
+                        color = textColor,
+                        textAlign = TextAlign.Center
                     )
+                    
+                    val quickPhrasesText = when (AppLocalization.currentLanguageCode) {
+                        "en" -> "Or select a context-aware traveler phrase below:"
+                        "zh" -> "或者在下方选择常用的旅行场景短语："
+                        else -> "أو اختر أحد التعبيرات السياحية المادية مسبقاً:"
+                    }
                     Text(
-                        text = "أو اختر أحد التعبيرات السياحية المادية مسبقاً:",
+                        text = quickPhrasesText,
                         fontSize = 11.sp,
                         color = secondaryTextColor,
                         modifier = Modifier.padding(top = 8.dp)
@@ -1103,12 +1151,26 @@ fun VoiceTranslatorView(
                     Spacer(modifier = Modifier.height(12.dp))
 
                     // Preset traveler dialog blocks
-                    val quickSpeakPhrases = listOf(
-                        "أين أقرب صيدلية مفتوحة الآن؟",
-                        "هل يشتمل إيجار الغرفة على وجبة الإفطار؟",
-                        "لو سمحت، أريد قائمة طعام باللغة العربية.",
-                        "كم تبعد محطة الحافلات عن الفندق؟"
-                    )
+                    val quickSpeakPhrases = when (AppLocalization.currentLanguageCode) {
+                        "en" -> listOf(
+                            "Where is the nearest open pharmacy right now?",
+                            "Does the room rent include breakfast?",
+                            "Excuse me, I'd like a menu in English.",
+                            "How far is the bus station from this hotel?"
+                        )
+                        "zh" -> listOf(
+                            "请问现在最近的营业药店在哪里？",
+                            "房费里面包含早餐吗？",
+                            "你好，我想要一份中文菜单。",
+                            "请问公交车站离这家酒店有多远？"
+                        )
+                        else -> listOf(
+                            "أين أقرب صيدلية مفتوحة الآن؟",
+                            "هل يشتمل إيجار الغرفة على وجبة الإفطار؟",
+                            "لو سمحت، أريد قائمة طعام باللغة العربية.",
+                            "كم تبعد محطة الحافلات عن الفندق؟"
+                        )
+                    }
 
                     LazyColumn(
                         modifier = Modifier.fillMaxWidth().heightIn(max = 160.dp),
@@ -1153,8 +1215,13 @@ fun VoiceTranslatorView(
                 border = BorderStroke(1.dp, AccentTeal.copy(alpha = 0.3f))
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
+                    val spokenPhraseLabel = when (AppLocalization.currentLanguageCode) {
+                        "en" -> "Spoken phrase in source language:"
+                        "zh" -> "识别出的源语言短语："
+                        else -> "العبارة المسموعة باللغة المصدر:"
+                    }
                     Text(
-                        text = "العبارة المسموعة باللغة المصدر:",
+                        text = spokenPhraseLabel,
                         fontSize = 11.sp,
                         color = secondaryTextColor,
                         fontWeight = FontWeight.Bold
@@ -1166,8 +1233,9 @@ fun VoiceTranslatorView(
                         modifier = Modifier.padding(vertical = 4.dp)
                     )
                     Divider(color = AccentTeal.copy(alpha = 0.2f), modifier = Modifier.padding(vertical = 8.dp))
+                    
                     Text(
-                        text = "الترجمة المقترحة لـ ($targetLang):",
+                        text = "${AppLocalization.get("suggested_translation")} (${getLocalizedLanguageName(targetLang)}):",
                         fontSize = 11.sp,
                         color = AccentTeal,
                         fontWeight = FontWeight.Bold
@@ -1188,7 +1256,7 @@ fun VoiceTranslatorView(
                     ) {
                         IconButton(onClick = {
                             clipboardManager.setPrimaryClip(ClipData.newPlainText("Voice Translation", voiceResult))
-                            viewModel.showToast("تم النسخ بنجاح")
+                            viewModel.showToast(AppLocalization.get("copy_success"))
                         }) {
                             Icon(Icons.Default.ContentCopy, contentDescription = "نسخ", tint = AccentTeal, modifier = Modifier.size(18.dp))
                         }
@@ -1235,12 +1303,27 @@ fun CameraTranslatorView(
                 val input = context.contentResolver.openInputStream(it)
                 val bitmap = android.graphics.BitmapFactory.decodeStream(input)
                 if (bitmap != null) {
-                    viewModel.setImageAndTranslate(bitmap, "صورة مستوردة من المعرض")
+                    val importedGalleryLabel = when (AppLocalization.currentLanguageCode) {
+                        "en" -> "Imported image from gallery"
+                        "zh" -> "从相册导入的图片"
+                        else -> "صورة مستوردة من المعرض"
+                    }
+                    viewModel.setImageAndTranslate(bitmap, importedGalleryLabel)
                 } else {
-                    viewModel.showToast("عذراً فشل قراءة الملف بصيغة صورة صالحة")
+                    val failedImageToast = when (AppLocalization.currentLanguageCode) {
+                        "en" -> "Failed to decode a valid image file."
+                        "zh" -> "解码有效图像文件失败。"
+                        else -> "عذراً فشل قراءة الملف بصيغة صورة صالحة"
+                    }
+                    viewModel.showToast(failedImageToast)
                 }
             } catch (e: Exception) {
-                viewModel.showToast("فشل فتح الصورة: ${e.localizedMessage}")
+                val failedOpenToast = when (AppLocalization.currentLanguageCode) {
+                    "en" -> "Failed to open image: ${e.localizedMessage}"
+                    "zh" -> "打开图像失败: ${e.localizedMessage}"
+                    else -> "فشل فتح الصورة: ${e.localizedMessage}"
+                }
+                viewModel.showToast(failedOpenToast)
             }
         }
     }
@@ -1249,7 +1332,12 @@ fun CameraTranslatorView(
         contract = ActivityResultContracts.TakePicturePreview()
     ) { bitmap ->
         bitmap?.let {
-            viewModel.setImageAndTranslate(it, "صورة لاقطة بالكاميرا")
+            val capturedCameraLabel = when (AppLocalization.currentLanguageCode) {
+                "en" -> "Camera snapshot"
+                "zh" -> "相机拍摄快照"
+                else -> "صورة لاقطة بالكاميرا"
+            }
+            viewModel.setImageAndTranslate(it, capturedCameraLabel)
         }
     }
 
@@ -1273,9 +1361,28 @@ fun CameraTranslatorView(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("المتبقي من تراجم لافتات الكاميرا وصورها اليوم:", fontSize = 11.sp, color = textColor)
+                val imagesLeftText = when (AppLocalization.currentLanguageCode) {
+                    "en" -> "Sign & camera limit remaining:"
+                    "zh" -> "今日剩余拍照与图文翻译数："
+                    else -> "المتبقي من تراجم لافتات الكاميرا وصورها اليوم:"
+                }
+                Text(imagesLeftText, fontSize = 11.sp, color = textColor)
+                
+                val imagesLimitVal = if (remainingImages > 100) {
+                    when (AppLocalization.currentLanguageCode) {
+                        "en" -> "Unlimited"
+                        "zh" -> "无限制"
+                        else -> "لامحدود"
+                    }
+                } else {
+                    when (AppLocalization.currentLanguageCode) {
+                        "en" -> "$remainingImages images"
+                        "zh" -> "$remainingImages 张"
+                        else -> "صور $remainingImages"
+                    }
+                }
                 Text(
-                    text = if (remainingImages > 100) "لامحدود" else "$remainingImages صور",
+                    text = imagesLimitVal,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
                     color = AccentTeal
@@ -1303,7 +1410,12 @@ fun CameraTranslatorView(
             ) {
                 item {
                     if (selectedBitmap != null) {
-                        Text("تم التقاط لافتة صالحة للترجمة:", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = textColor)
+                        val capturedSuccessText = when (AppLocalization.currentLanguageCode) {
+                            "en" -> "Valid sign captured successfully!"
+                            "zh" -> "成功捕获有效标识照片！"
+                            else -> "تم التقاط لافتة صالحة للترجمة:"
+                        }
+                        Text(capturedSuccessText, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = textColor)
                         Spacer(modifier = Modifier.height(10.dp))
                         Image(
                             bitmap = selectedBitmap!!.asImageBitmap(),
@@ -1318,7 +1430,7 @@ fun CameraTranslatorView(
                         // Empty photo screen display
                         Icon(Icons.Default.AddPhotoAlternate, contentDescription = null, tint = AccentTeal, modifier = Modifier.size(54.dp))
                         Spacer(modifier = Modifier.height(8.dp))
-                        Text("طريقة التقاط لافتات السفر والتحويل المكتوب:", fontSize = 13.sp, color = secondaryTextColor, textAlign = TextAlign.Center)
+                        Text(AppLocalization.get("camera_desc"), fontSize = 13.sp, color = secondaryTextColor, textAlign = TextAlign.Center)
                         Spacer(modifier = Modifier.height(14.dp))
                     }
                 }
@@ -1329,6 +1441,11 @@ fun CameraTranslatorView(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.Center
                     ) {
+                        val cameraBtnLabel = when (AppLocalization.currentLanguageCode) {
+                            "en" -> "Camera"
+                            "zh" -> "相机拍摄"
+                            else -> "الكاميرا"
+                        }
                         Button(
                             onClick = { cameraLauncher.launch() },
                             colors = ButtonDefaults.buttonColors(containerColor = AccentTeal),
@@ -1337,9 +1454,15 @@ fun CameraTranslatorView(
                         ) {
                             Icon(Icons.Default.PhotoCamera, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("الكاميرا", fontSize = 12.sp)
+                            Text(cameraBtnLabel, fontSize = 12.sp)
                         }
                         Spacer(modifier = Modifier.width(10.dp))
+                        
+                        val galleryBtnLabel = when (AppLocalization.currentLanguageCode) {
+                            "en" -> "Gallery"
+                            "zh" -> "相册选图"
+                            else -> "المعرص"
+                        }
                         Button(
                             onClick = { galleryLauncher.launch("image/*") },
                             colors = ButtonDefaults.buttonColors(containerColor = if (isDarkMode) Color(0xFF2E3B52) else Color(0xFFE2E8F0), contentColor = textColor),
@@ -1348,7 +1471,7 @@ fun CameraTranslatorView(
                         ) {
                             Icon(Icons.Default.Image, contentDescription = null, tint = AccentTeal, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("المعرض", fontSize = 12.sp)
+                            Text(galleryBtnLabel, fontSize = 12.sp)
                         }
                     }
                 }
@@ -1357,8 +1480,13 @@ fun CameraTranslatorView(
                     Spacer(modifier = Modifier.height(16.dp))
                     Divider(color = AccentTeal.copy(alpha = 0.15f))
                     Spacer(modifier = Modifier.height(10.dp))
+                    val sampleSignsText = when (AppLocalization.currentLanguageCode) {
+                        "en" -> "Sample travel signs for instant simulator test:"
+                        "zh" -> "用于模拟器即时测试的常用旅行标牌样例："
+                        else -> "لافتات سياحية نموذجية لاختبار الكاميرا فوراً في المحاكي:"
+                    }
                     Text(
-                        text = "لافتات سياحية نموذجية لاختبار الكاميرا فوراً في المحاكي:",
+                        text = sampleSignsText,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
                         color = textColor,
@@ -1369,26 +1497,57 @@ fun CameraTranslatorView(
 
                 item {
                     // Row/Grid of templates
+                    val labelJP = when (AppLocalization.currentLanguageCode) {
+                        "en" -> "🚨 Japanese Sign"
+                        "zh" -> "🚨 日本紧急出口"
+                        else -> "🚨 لافتة يابانية"
+                    }
+                    val subLabelJP = when (AppLocalization.currentLanguageCode) {
+                        "en" -> "Emergency Exit"
+                        "zh" -> "安全出口标识"
+                        else -> "مخرج طوارئ"
+                    }
+                    val labelIT = when (AppLocalization.currentLanguageCode) {
+                        "en" -> "🍝 Italian Bill"
+                        "zh" -> "🍝 意大利账单"
+                        else -> "🍝 قائمة إيطالية"
+                    }
+                    val subLabelIT = when (AppLocalization.currentLanguageCode) {
+                        "en" -> "Trattoria Receipt"
+                        "zh" -> "餐厅收费小票"
+                        else -> "فاتورة مطعم"
+                    }
+                    
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         TemplateCard(
-                            label = "🚨 لافتة يابانية",
-                            subLabel = "مخرج طوارئ",
+                            label = labelJP,
+                            subLabel = subLabelJP,
                             onClick = {
                                 val b = ImageMockGenerator.generateJapaneseExitSign()
-                                viewModel.setImageAndTranslate(b, "لافتة Exit يابانية")
+                                val desc = when (AppLocalization.currentLanguageCode) {
+                                    "en" -> "Japanese Exit Sign"
+                                    "zh" -> "日本出口标牌"
+                                    else -> "لافتة Exit يابانية"
+                                }
+                                viewModel.setImageAndTranslate(b, desc)
                             },
                             modifier = Modifier.weight(1f).testTag("sample_jpx_sign")
                         )
 
                         TemplateCard(
-                            label = "🍝 قائمة إيطالية",
-                            subLabel = "فاتورة مطعم",
+                            label = labelIT,
+                            subLabel = subLabelIT,
                             onClick = {
                                 val b = ImageMockGenerator.generateItalianMenu()
-                                viewModel.setImageAndTranslate(b, "فاتورة مطعم إيطالي")
+                                val desc = when (AppLocalization.currentLanguageCode) {
+                                    "en" -> "Italian restaurant receipt"
+                                    "zh" -> "餐饮小票"
+                                    else -> "فاتورة مطعم إيطالي"
+                                }
+                                viewModel.setImageAndTranslate(b, desc)
                             },
                             modifier = Modifier.weight(1f).testTag("sample_ita_menu")
                         )
@@ -1397,26 +1556,58 @@ fun CameraTranslatorView(
 
                 item {
                     Spacer(modifier = Modifier.height(8.dp))
+                    
+                    val labelFR = when (AppLocalization.currentLanguageCode) {
+                        "en" -> "✈️ Paris Airport"
+                        "zh" -> "✈️ 巴黎机场看板"
+                        else -> "✈️ مطار باريس"
+                    }
+                    val subLabelFR = when (AppLocalization.currentLanguageCode) {
+                        "en" -> "CDG Flights Status"
+                        "zh" -> "法国航班表单"
+                        else -> "حالة رحلات فرنسا"
+                    }
+                    val labelDE = when (AppLocalization.currentLanguageCode) {
+                        "en" -> "🚇 Berlin Metro"
+                        "zh" -> "🚇 柏林地铁指示"
+                        else -> "🚇 مترو برلين"
+                    }
+                    val subLabelDE = when (AppLocalization.currentLanguageCode) {
+                        "en" -> "U-Bahn Ticket Box"
+                        "zh" -> "德国自动售票终端"
+                        else -> "شباك تذاكر ألمانيا"
+                    }
+                    
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         TemplateCard(
-                            label = "✈️ مطار باريس",
-                            subLabel = "حالة رحلات فرنسا",
+                            label = labelFR,
+                            subLabel = subLabelFR,
                             onClick = {
                                 val b = ImageMockGenerator.generateFrenchAirportBoard()
-                                viewModel.setImageAndTranslate(b, "جدولة رحلات طيران باريس CDG")
+                                val desc = when (AppLocalization.currentLanguageCode) {
+                                    "en" -> "CDG Flights Schedule"
+                                    "zh" -> "巴黎戴高乐机场航班信息"
+                                    else -> "جدولة رحلات طيران باريس CDG"
+                                }
+                                viewModel.setImageAndTranslate(b, desc)
                             },
                             modifier = Modifier.weight(1f)
                         )
 
                         TemplateCard(
-                            label = "🚇 مترو برلين",
-                            subLabel = "شباك تذاكر ألمانيا",
+                            label = labelDE,
+                            subLabel = subLabelDE,
                             onClick = {
                                 val b = ImageMockGenerator.generateGermanMetroSign()
-                                viewModel.setImageAndTranslate(b, "لوحة تذاكر ألمانية U-Bahn")
+                                val desc = when (AppLocalization.currentLanguageCode) {
+                                    "en" -> "U-Bahn Ticketing Board"
+                                    "zh" -> "柏林U-Bahn地铁票务牌"
+                                    else -> "لوحة تذاكر ألمانية U-Bahn"
+                                }
+                                viewModel.setImageAndTranslate(b, desc)
                             },
                             modifier = Modifier.weight(1f)
                         )
@@ -1440,7 +1631,7 @@ fun CameraTranslatorView(
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
-                        text = "ترجمة وتحليل اللافتة لـ ($targetLang):",
+                        text = "${AppLocalization.get("suggested_translation")} (${getLocalizedLanguageName(targetLang)}):",
                         fontSize = 11.sp,
                         color = AccentTeal,
                         fontWeight = FontWeight.Bold
@@ -1463,7 +1654,7 @@ fun CameraTranslatorView(
                     ) {
                         IconButton(onClick = {
                             clipboardManager.setPrimaryClip(ClipData.newPlainText("Image Translation", imageResult))
-                            viewModel.showToast("تم النسخ بنجاح")
+                            viewModel.showToast(AppLocalization.get("copy_success"))
                         }) {
                             Icon(Icons.Default.ContentCopy, contentDescription = "نسخ", tint = AccentTeal, modifier = Modifier.size(18.dp))
                         }
@@ -1539,10 +1730,20 @@ fun HistoryTabScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("سجل الدفاتر والترجمات", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = textColor)
+            val historyTitle = when (AppLocalization.currentLanguageCode) {
+                "en" -> "Translation History"
+                "zh" -> "翻译历史记录"
+                else -> "سجل الدفاتر والترجمات"
+            }
+            Text(historyTitle, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = textColor)
             if (history.isNotEmpty()) {
+                val clearAllText = when (AppLocalization.currentLanguageCode) {
+                    "en" -> "Clear All"
+                    "zh" -> "清空全部"
+                    else -> "مسح الكل"
+                }
                 Text(
-                    text = "مسح الكل",
+                    text = clearAllText,
                     fontSize = 13.sp,
                     color = Color.Red,
                     fontWeight = FontWeight.Bold,
@@ -1563,9 +1764,21 @@ fun HistoryTabScreen(
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Icon(Icons.Default.FolderOpen, contentDescription = null, tint = AccentTeal, modifier = Modifier.size(64.dp))
                     Spacer(modifier = Modifier.height(12.dp))
-                    Text("السجل فارغ تماماً", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = textColor)
+                    
+                    val emptyHistoryText = when (AppLocalization.currentLanguageCode) {
+                        "en" -> "History is empty"
+                        "zh" -> "暂无历史记录"
+                        else -> "السجل فارغ تماماً"
+                    }
+                    Text(emptyHistoryText, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = textColor)
+                    
+                    val emptyHistorySubText = when (AppLocalization.currentLanguageCode) {
+                        "en" -> "Translate text, voice recordings, or camera signs to see them archived here."
+                        "zh" -> "翻译文本、语音或拍照标志后，译文将在下面归档。"
+                        else -> "ترجم نصوصاً، خطوطاً صوتية أو لافتات ومستندات لتجدها مؤرشفة هنا."
+                    }
                     Text(
-                        text = "ترجم نصوصاً، خطوطاً صوتية أو لافتات ومستندات لتجدها مؤرشفة هنا.",
+                        text = emptyHistorySubText,
                         fontSize = 12.sp,
                         color = secondaryTextColor,
                         textAlign = TextAlign.Center,
@@ -1636,7 +1849,7 @@ fun HistoryItemCard(
                     Icon(typeIcon, contentDescription = null, tint = AccentTeal, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = "${record.sourceLang} ➔ ${record.targetLang}",
+                        text = "${getLocalizedLanguageName(record.sourceLang)} ➔ ${getLocalizedLanguageName(record.targetLang)}",
                         fontSize = 11.sp,
                         color = AccentTeal,
                         fontWeight = FontWeight.Bold
@@ -1683,7 +1896,7 @@ fun HistoryItemCard(
                 IconButton(
                     onClick = {
                         clipboardManager.setPrimaryClip(ClipData.newPlainText("Translation", record.translatedText))
-                        viewModel.showToast("تم النسخ بنجاح")
+                        viewModel.showToast(AppLocalization.get("copy_success"))
                     },
                     modifier = Modifier.size(32.dp)
                 ) {

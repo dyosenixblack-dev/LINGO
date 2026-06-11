@@ -284,7 +284,7 @@ class TranslationViewModel(application: Application) : AndroidViewModel(applicat
     fun performTextTranslation() {
         val text = sourceText.value.trim()
         if (text.isEmpty()) {
-            _toastMessage.value = "الرجاء كتابة النص المراد ترجمته أولاً"
+            _toastMessage.value = AppLocalization.get("write_text_alert")
             return
         }
 
@@ -325,7 +325,7 @@ class TranslationViewModel(application: Application) : AndroidViewModel(applicat
         voiceTextPhrase.value = spokenLabel
 
         if (!subscriptionManager.canTranslateVoice()) {
-            _toastMessage.value = "لقد استهلكت حد ترجمة الرسائل الصوتية اليومي المتاح لباقتك الحالية! يرجى الترقية لزيادة الحد."
+            _toastMessage.value = AppLocalization.get("free_limit_voice")
             return
         }
 
@@ -365,7 +365,7 @@ class TranslationViewModel(application: Application) : AndroidViewModel(applicat
         _selectedBitmap.value = bitmap
 
         if (!subscriptionManager.canTranslateImage()) {
-            _toastMessage.value = "لقد فرغت حدود ترجمة لافتات السفر المتاحة لك اليوم! يرجى الترقية إلى الباقة الممتازة لرفع الحد إلى 10 صور أو اللامحدودة."
+            _toastMessage.value = AppLocalization.get("free_limit_image")
             return
         }
 

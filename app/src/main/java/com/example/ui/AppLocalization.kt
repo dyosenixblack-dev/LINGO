@@ -369,3 +369,38 @@ fun SubscriptionType.getPrice(lang: String): String {
         else -> this.priceAr
     }
 }
+
+fun getLocalizedLanguageName(langNameAr: String): String {
+    return when (AppLocalization.currentLanguageCode) {
+        "en" -> when (langNameAr) {
+            "العربية" -> "Arabic"
+            "الإنجليزية" -> "English"
+            "الفرنسية" -> "French"
+            "الإسبانية" -> "Spanish"
+            "الإيطالية" -> "Italian"
+            "الألمانية" -> "German"
+            "التركية" -> "Turkish"
+            "اليابانية" -> "Japanese"
+            "الصينية" -> "Chinese"
+            "الكورية" -> "Korean"
+            "الروسية" -> "Russian"
+            else -> langNameAr
+        }
+        "zh" -> when (langNameAr) {
+            "العربية" -> "阿拉伯语"
+            "الإنجليزية" -> "英语"
+            "الفرنسية" -> "法语"
+            "الإسبانية" -> "西班牙语"
+            "الإيطالية" -> "意大利语"
+            "الألمانية" -> "德语"
+            "التركية" -> "土耳其语"
+            "اليابانية" -> "日语"
+            "الصينية" -> "中文"
+            "الكورية" -> "韩语"
+            "الروسية" -> "俄语"
+            else -> langNameAr
+        }
+        else -> langNameAr
+    }
+}
+
