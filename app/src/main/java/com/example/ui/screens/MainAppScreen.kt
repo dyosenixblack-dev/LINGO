@@ -1481,6 +1481,21 @@ fun CameraTranslatorView(
         }
     }
 
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            cameraLauncher.launch()
+        } else {
+            val permissionDeniedText = when (AppLocalization.currentLanguageCode) {
+                "en" -> "Camera permission is required to capture images of signs and text for translation!"
+                "zh" -> "需要相机权限才能拍摄标识和文本进行翻译！"
+                else -> "مطلوب إذن الكاميرا لالتقاط صور اللافتات والنصوص لترجمتها!"
+            }
+            viewModel.showToast(permissionDeniedText)
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -1587,7 +1602,17 @@ fun CameraTranslatorView(
                             else -> "الكاميرا"
                         }
                         Button(
-                            onClick = { cameraLauncher.launch() },
+                            onClick = {
+                                val hasPermission = androidx.core.content.ContextCompat.checkSelfPermission(
+                                    context,
+                                    android.Manifest.permission.CAMERA
+                                ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+                                if (hasPermission) {
+                                    cameraLauncher.launch()
+                                } else {
+                                    permissionLauncher.launch(android.Manifest.permission.CAMERA)
+                                }
+                            },
                             colors = ButtonDefaults.buttonColors(containerColor = AccentTeal),
                             shape = RoundedCornerShape(12.dp),
                             modifier = Modifier.weight(1f).testTag("launch_camera_btn")
