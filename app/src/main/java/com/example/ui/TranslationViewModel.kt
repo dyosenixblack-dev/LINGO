@@ -1,7 +1,12 @@
 package com.example.ui
 
 import android.app.Application
+import android.content.Intent
 import android.graphics.Bitmap
+import android.os.Bundle
+import android.speech.RecognitionListener
+import android.speech.RecognizerIntent
+import android.speech.SpeechRecognizer
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -73,6 +78,12 @@ class TranslationViewModel(application: Application) : AndroidViewModel(applicat
     val voiceTextPhrase = MutableStateFlow("")
     private val _voiceTranslationResult = MutableStateFlow("")
     val voiceTranslationResult: StateFlow<String> = _voiceTranslationResult.asStateFlow()
+
+    // Real-time voice parameters and recognizer
+    private val _rmsVolume = MutableStateFlow(0f)
+    val rmsVolume: StateFlow<Float> = _rmsVolume.asStateFlow()
+
+    private var speechRecognizer: SpeechRecognizer? = null
 
     // Camera/Image Translator states
     private val _selectedBitmap = MutableStateFlow<Bitmap?>(null)
@@ -336,8 +347,156 @@ class TranslationViewModel(application: Application) : AndroidViewModel(applicat
     }
 
     // 2. Voice Translation Action
-    fun startRecordingVoice() {
+    fun startListeningSpeech() {
+        val context = getApplication<Application>()
+        if (!SpeechRecognizer.isRecognitionAvailable(context)) {
+            val errMsg = when (AppLocalization.currentLanguageCode) {
+                "en" -> "Speech Recognition is not available on this device!"
+                "zh" -> "此设备上不支持语音识别！"
+                else -> "خدمة التعرف على الكلام غير متوفرة على هذا الجهاز!"
+            }
+            showToast(errMsg)
+            // Just simulate recording if unavailable (fallback)
+            _isRecording.value = true
+            return
+        }
+
         _isRecording.value = true
+        _rmsVolume.value = 0f
+        voiceTextPhrase.value = ""
+
+        viewModelScope.launch(Dispatchers.Main) {
+            try {
+                if (speechRecognizer == null) {
+                    speechRecognizer = SpeechRecognizer.createSpeechRecognizer(context)
+                }
+
+                speechRecognizer?.setRecognitionListener(object : RecognitionListener {
+                    override fun onReadyForSpeech(params: Bundle?) {
+                        _rmsVolume.value = 0f
+                    }
+
+                    override fun onBeginningOfSpeech() {}
+
+                    override fun onRmsChanged(rmsdB: Float) {
+                        _rmsVolume.value = rmsdB
+                    }
+
+                    override fun onBufferReceived(buffer: ByteArray?) {}
+
+                    override fun onEndOfSpeech() {}
+
+                    override fun onError(error: Int) {
+                        val message = when (error) {
+                            SpeechRecognizer.ERROR_AUDIO -> "Audio recording error"
+                            SpeechRecognizer.ERROR_CLIENT -> "Client feedback error"
+                            SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> "Insufficient permissions"
+                            SpeechRecognizer.ERROR_NETWORK -> "Network error"
+                            SpeechRecognizer.ERROR_NETWORK_TIMEOUT -> "Network timeout"
+                            SpeechRecognizer.ERROR_NO_MATCH -> "No speech match found"
+                            SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> "Speech service is busy"
+                            SpeechRecognizer.ERROR_SERVER -> "Server error"
+                            SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> "No speech input timeout"
+                            else -> "Voice recognition exception"
+                        }
+                        
+                        if (error == SpeechRecognizer.ERROR_NO_MATCH && voiceTextPhrase.value.isNotEmpty()) {
+                            stopListeningAndTranslate()
+                        } else {
+                            _isRecording.value = false
+                            _rmsVolume.value = 0f
+                            val localizedMsg = when (AppLocalization.currentLanguageCode) {
+                                "en" -> "Voice recognition error: $message"
+                                "zh" -> "语音识别错误：$message"
+                                else -> "خطأ في التعرف على الصوت: $message"
+                            }
+                            showToast(localizedMsg)
+                        }
+                    }
+
+                    override fun onResults(results: Bundle?) {
+                        val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+                        val spokenText = matches?.firstOrNull() ?: ""
+                        if (spokenText.isNotEmpty()) {
+                            voiceTextPhrase.value = spokenText
+                        }
+                        stopListeningAndTranslate()
+                    }
+
+                    override fun onPartialResults(partialResults: Bundle?) {
+                        val matches = partialResults?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+                        val spokenText = matches?.firstOrNull() ?: ""
+                        if (spokenText.isNotEmpty()) {
+                            voiceTextPhrase.value = spokenText
+                        }
+                    }
+
+                    override fun onEvent(eventType: Int, params: Bundle?) {}
+                })
+
+                val sourceLanguageCode = getSpeechLanguageCode(sourceLang.value)
+                val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                    putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                    putExtra(RecognizerIntent.EXTRA_LANGUAGE, sourceLanguageCode)
+                    putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, sourceLanguageCode)
+                    putExtra(RecognizerIntent.EXTRA_ONLY_RETURN_LANGUAGE_PREFERENCE, sourceLanguageCode)
+                    putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
+                    putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
+                }
+
+                speechRecognizer?.startListening(intent)
+            } catch (e: Exception) {
+                _isRecording.value = false
+                _rmsVolume.value = 0f
+                showToast("Recognizer launch error: ${e.localizedMessage}")
+            }
+        }
+    }
+
+    private fun getSpeechLanguageCode(languageName: String): String {
+        return when (languageName) {
+            "العربية" -> "ar-SA"
+            "الإنكليزية", "الإنجليزية" -> "en-US"
+            "الفرنسية" -> "fr-FR"
+            "الإسبانية" -> "es-ES"
+            "الإيطالية" -> "it-IT"
+            "الألمانية" -> "de-DE"
+            "التركية" -> "tr-TR"
+            "اليابانية" -> "ja-JP"
+            "الصينية" -> "zh-CN"
+            "الكورية" -> "ko-KR"
+            "الروسية" -> "ru-RU"
+            else -> "en-US"
+        }
+    }
+
+    fun stopListeningAndTranslate() {
+        speechRecognizer?.stopListening()
+        
+        val spokenText = voiceTextPhrase.value.trim()
+        if (spokenText.isEmpty()) {
+            _isRecording.value = false
+            _rmsVolume.value = 0f
+            val emptyAlert = when (AppLocalization.currentLanguageCode) {
+                "en" -> "No speech was detected. Please try again!"
+                "zh" -> "未检测到语音。请再试一次！"
+                else -> "لم يتم الكشف عن صوت مسموع. يرجى المحاولة ثانية!"
+            }
+            showToast(emptyAlert)
+            return
+        }
+
+        stopRecordingAndTranslate(spokenText)
+    }
+
+    fun cancelListeningSpeech() {
+        speechRecognizer?.cancel()
+        _isRecording.value = false
+        _rmsVolume.value = 0f
+    }
+
+    fun startRecordingVoice() {
+        startListeningSpeech()
     }
 
     fun stopRecordingAndTranslate(spokenLabel: String) {
@@ -446,6 +605,12 @@ class TranslationViewModel(application: Application) : AndroidViewModel(applicat
         viewModelScope.launch(Dispatchers.IO) {
             historyDao.clearHistory()
         }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        speechRecognizer?.destroy()
+        speechRecognizer = null
     }
 }
 

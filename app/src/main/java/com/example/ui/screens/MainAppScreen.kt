@@ -12,6 +12,8 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.scaleIn
@@ -1113,8 +1115,26 @@ fun VoiceTranslatorView(
     val voiceResult by viewModel.voiceTranslationResult.collectAsStateWithLifecycle()
     val targetLang by viewModel.targetLang.collectAsStateWithLifecycle()
     val remainingVoice by viewModel.remainingVoice.collectAsStateWithLifecycle()
+    val rmsVolume by viewModel.rmsVolume.collectAsStateWithLifecycle()
 
+    val context = LocalContext.current
     val scope = rememberCoroutineScope()
+
+    // Request permission launcher
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = androidx.activity.result.contract.ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            viewModel.startRecordingVoice()
+        } else {
+            val permissionDeniedText = when (AppLocalization.currentLanguageCode) {
+                "en" -> "Microphone permission is required for real-time voice translation!"
+                "zh" -> "进行实时语音翻译需要麦克风权限！"
+                else -> "مطلوب إذن الميكروفون للترجمة الصوتية الفورية!"
+            }
+            viewModel.showToast(permissionDeniedText)
+        }
+    }
 
     // Fluctuating waveform generator animation
     val infiniteTransition = rememberInfiniteTransition()
@@ -1201,9 +1221,33 @@ fun VoiceTranslatorView(
                         else -> "جاري الاستماع ولقط الصوت..."
                     }
                     Text(recordingLabel, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = AccentTeal)
-                    Spacer(modifier = Modifier.height(18.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
 
-                    // Simulated live recording soundwaves
+                    // Real-time live transcription display
+                    AnimatedVisibility(
+                        visible = voiceTextPhrase.isNotEmpty(),
+                        enter = fadeIn() + expandVertically(),
+                        exit = fadeOut() + shrinkVertically()
+                    ) {
+                        Text(
+                            text = "\" $voiceTextPhrase \"",
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Normal,
+                            color = textColor,
+                            textAlign = TextAlign.Center,
+                            style = androidx.compose.ui.text.TextStyle(fontStyle = androidx.compose.ui.text.font.FontStyle.Italic),
+                            modifier = Modifier
+                                .padding(horizontal = 16.dp)
+                                .fillMaxWidth()
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Simulated live recording soundwaves responsive to voice RMS volume
+                    val voiceAmplitude = (rmsVolume + 2f).coerceAtLeast(0f) / 10f
+                    val responsiveScale = if (voiceAmplitude > 0f) voiceAmplitude.coerceAtMost(2f) else 0.15f
+
                     Box(modifier = Modifier.height(60.dp), contentAlignment = Alignment.Center) {
                         Canvas(modifier = Modifier.width(160.dp).fillMaxHeight()) {
                             val barWidth = 10f
@@ -1212,7 +1256,7 @@ fun VoiceTranslatorView(
                             val colors = listOf(Color(0xFF0D47A1), AccentTeal, Color(0xFF03A9F4))
 
                             for (i in 0..8) {
-                                val offset = waveHeightPercent * if (i % 2 == 0) 0.5f else 0.9f
+                                val offset = waveHeightPercent * responsiveScale * (if (i % 2 == 0) 0.5f else 0.9f)
                                 val barHeight = size.height * offset * (1f - Math.abs(i - 4) * 0.15f)
                                 drawRoundRect(
                                     color = colors[i % colors.size],
@@ -1226,12 +1270,6 @@ fun VoiceTranslatorView(
 
                     Spacer(modifier = Modifier.height(24.dp))
 
-                    val stopRecordingDummyText = when (AppLocalization.currentLanguageCode) {
-                        "en" -> "Hello, can you guide me to the correct metro line?"
-                        "zh" -> "你好，能告诉我去地铁站的路怎么走吗？"
-                        else -> "أهلاً، هل يمكنك إرشادي إلى المسار الصحيح للمترو؟"
-                    }
-
                     val finishAndTranslateLabel = when (AppLocalization.currentLanguageCode) {
                         "en" -> "Finish & Translate"
                         "zh" -> "结束录音并翻译"
@@ -1240,7 +1278,7 @@ fun VoiceTranslatorView(
 
                     Button(
                         onClick = {
-                            viewModel.stopRecordingAndTranslate(stopRecordingDummyText)
+                            viewModel.stopListeningAndTranslate()
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = Color.Red),
                         modifier = Modifier.height(48.dp).testTag("stop_recording_btn")
@@ -1256,7 +1294,17 @@ fun VoiceTranslatorView(
                             .size(90.dp)
                             .clip(CircleShape)
                             .background(AccentTeal.copy(alpha = 0.15f))
-                            .clickable { viewModel.startRecordingVoice() }
+                            .clickable {
+                                val hasPermission = androidx.core.content.ContextCompat.checkSelfPermission(
+                                    context,
+                                    android.Manifest.permission.RECORD_AUDIO
+                                ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+                                if (hasPermission) {
+                                    viewModel.startRecordingVoice()
+                                } else {
+                                    permissionLauncher.launch(android.Manifest.permission.RECORD_AUDIO)
+                                }
+                            }
                             .testTag("mic_trigger_btn"),
                         contentAlignment = Alignment.Center
                     ) {
